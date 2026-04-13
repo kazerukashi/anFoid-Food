@@ -13,6 +13,7 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -20,6 +21,16 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -31,6 +42,7 @@ import androidx.compose.material.icons.filled.AccessTime
 import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.Flatware
 import androidx.compose.material.icons.filled.Groups
@@ -86,7 +98,39 @@ import com.example.a212062_rimaniza_lab1.ui.theme.A212062_Rimaniza_Lab1Theme
 import kotlinx.coroutines.launch
 
 // Data class for easier item management
-data class FoodItemData(val imageRes: Int, val name: String, val isFavourite: Boolean = false)
+data class FoodItemData(
+    val imageRes: Int, 
+    val name: String, 
+    val origin: String,
+    val ingredients: List<String>,
+    val isFavourite: Boolean = false
+) {
+    // Automatic Labeling System: Tags are derived from ingredients
+    val tags: List<String> get() {
+        val result = mutableListOf<String>()
+        val lowerIngredients = ingredients.map { it.lowercase() }
+        
+        // Category detection
+        if (lowerIngredients.any { it.contains("chicken") || it.contains("beef") || it.contains("lamb") || it.contains("fish") || it.contains("shrimp") }) result.add("Protein")
+        if (lowerIngredients.any { it.contains("chicken") }) result.add("Chicken-based")
+        if (lowerIngredients.any { it.contains("rice") || it.contains("noodle") || it.contains("flour") || it.contains("dough") || it.contains("pasta") }) result.add("Carbs")
+        
+        // Dietary restrictions
+        val nonVegan = listOf("meat", "chicken", "beef", "fish", "egg", "milk", "cheese", "cream", "butter")
+        if (lowerIngredients.none { ing -> nonVegan.any { nv -> ing.contains(nv) } }) result.add("Vegan")
+        
+        val dairyIng = listOf("milk", "cheese", "cream", "butter", "yogurt")
+        if (lowerIngredients.any { ing -> dairyIng.any { d -> ing.contains(d) } }) result.add("Dairy")
+        else result.add("Non-Dairy")
+
+        // Halal status (simplified heuristic for demo)
+        val nonHalal = listOf("pork", "lard", "wine", "alcohol", "ham", "bacon")
+        if (lowerIngredients.none { ing -> nonHalal.any { nh -> ing.contains(nh) } }) result.add("Halal")
+        else result.add("Non-Halal")
+
+        return result
+    }
+}
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -103,8 +147,26 @@ class MainActivity : ComponentActivity() {
                 var selectedDrawerItem by remember { mutableStateOf("Home") }
                 val pinkColor = Color(0xFFFF69B4)
 
-                // State for recent items.
-                val recentItems = remember { mutableStateListOf<FoodItemData>() }
+                // Master list of all food items with Ingredients for Automatic Labeling
+                val allFoodItems = remember {
+                    mutableStateListOf(
+                        FoodItemData(R.drawable.nasmak, "Nasi Lemak", "Malay", listOf("Rice", "Coconut Milk", "Anchovies", "Peanuts", "Egg", "Sambal"), isFavourite = true),
+                        FoodItemData(R.drawable.beefrendang, "Beef Rendang", "Malay", listOf("Beef", "Coconut Milk", "Lemongrass", "Galangal", "Spices")),
+                        FoodItemData(R.drawable.satay, "Satay", "Malay", listOf("Chicken", "Turmeric", "Lemongrass", "Peanut Sauce")),
+                        FoodItemData(R.drawable.pekingduck, "Peking Duck", "Chinese", listOf("Duck", "Hoisin Sauce", "Honey", "Cucumber", "Scallion")),
+                        FoodItemData(R.drawable.xiaolongbao, "Xiaolongbao", "Chinese", listOf("Minced Pork", "Wheat Flour", "Soup Broth", "Ginger"), isFavourite = true),
+                        FoodItemData(R.drawable.chowmein, "Chow Mein", "Chinese", listOf("Egg Noodles", "Soy Sauce", "Cabbage", "Carrot", "Pork")),
+                        FoodItemData(R.drawable.butterchicken, "Butter Chicken", "Indian", listOf("Chicken", "Butter", "Cream", "Tomato", "Garam Masala"), isFavourite = true),
+                        FoodItemData(R.drawable.biryani, "Biryani", "Indian", listOf("Basmati Rice", "Chicken", "Yogurt", "Saffron", "Spices")),
+                        FoodItemData(R.drawable.samosa, "Samosa", "Indian", listOf("Potato", "Peas", "Wheat Flour", "Spices")),
+                        FoodItemData(R.drawable.margherita_pizza, "Margherita Pizza", "Italian", listOf("Dough", "Tomato", "Mozzarella Cheese", "Basil", "Olive Oil"), isFavourite = true),
+                        FoodItemData(R.drawable.lasagna, "Lasagna", "Italian", listOf("Pasta", "Minced Beef", "Tomato Sauce", "Béchamel", "Cheese")),
+                        FoodItemData(R.drawable.spaghetti_bolognese, "Spaghetti Bolognese", "Italian", listOf("Spaghetti", "Beef", "Tomato", "Onion", "Garlic"))
+                    )
+                }
+
+                // State for recent items (storing names to keep synced with master list).
+                val recentNames = remember { mutableStateListOf<String>() }
                 // Limit for recent items. Easy to edit later.
                 val MAX_RECENT_ITEMS = 30
 
@@ -220,19 +282,19 @@ class MainActivity : ComponentActivity() {
                         modifier = Modifier.fillMaxSize(),
                         color = MaterialTheme.colorScheme.background
                     ) {
-                        val scrollState = rememberScrollState()
+                        val lazyListState = rememberLazyListState()
                         val showButton by remember {
                             derivedStateOf {
-                                scrollState.value > 500
+                                lazyListState.firstVisibleItemIndex > 2
                             }
                         }
 
                         Column(
                             modifier = Modifier
                                 .fillMaxSize()
-                                .padding(8.dp)
+                                .padding(horizontal = 8.dp)
                         ) {
-                            Spacer(modifier = Modifier.size(24.dp)) // Extra padding for the top bar
+                            Spacer(modifier = Modifier.size(24.dp))
                             TopBar(
                                 query = searchQuery,
                                 onQueryChange = { searchQuery = it },
@@ -242,32 +304,45 @@ class MainActivity : ComponentActivity() {
                             )
                             Spacer(modifier = Modifier.height(16.dp))
 
-                            // Box to allow FloatingActionButton to overlay the scrollable section
                             Box(modifier = Modifier.weight(1f)) {
-                                // Scrollable section
-                                Column(
-                                    modifier = Modifier
-                                        .fillMaxSize()
-                                        .verticalScroll(scrollState),
-                                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                                // Optimized: Using LazyColumn instead of Column + verticalScroll
+                                LazyColumn(
+                                    state = lazyListState,
+                                    modifier = Modifier.fillMaxSize(),
+                                    verticalArrangement = Arrangement.spacedBy(16.dp),
+                                    contentPadding = PaddingValues(bottom = 16.dp)
                                 ) {
-                                    Category(
-                                        selectedCategory = selectedCategory,
-                                        onCategoryClick = { selectedCategory = it }
-                                    )
-                                    FoodCategory(
-                                        searchQuery = searchQuery,
-                                        selectedCategory = selectedCategory,
-                                        recentItems = recentItems,
-                                        onFoodClick = { clickedItem ->
-                                            // Update recent items list: move clicked item to top and limit size
-                                            recentItems.removeAll { it.name == clickedItem.name }
-                                            recentItems.add(0, clickedItem)
-                                            if (recentItems.size > MAX_RECENT_ITEMS) {
-                                                recentItems.removeAt(recentItems.size - 1)
+                                    item {
+                                        Category(
+                                            selectedCategory = selectedCategory,
+                                            onCategoryClick = { selectedCategory = it }
+                                        )
+                                    }
+                                    
+                                    // Food Categories as Lazy Items
+                                    item {
+                                        FoodCategory(
+                                            searchQuery = searchQuery,
+                                            selectedCategory = selectedCategory,
+                                            allFoodItems = allFoodItems,
+                                            recentNames = recentNames,
+                                            onFoodClick = { clickedItem ->
+                                                recentNames.removeAll { it == clickedItem.name }
+                                                recentNames.add(0, clickedItem.name)
+                                                if (recentNames.size > MAX_RECENT_ITEMS) {
+                                                    recentNames.removeAt(recentNames.size - 1)
+                                                }
+                                            },
+                                            onFavouriteToggle = { toggledItem ->
+                                                val index = allFoodItems.indexOfFirst { it.name == toggledItem.name }
+                                                if (index != -1) {
+                                                    allFoodItems[index] = allFoodItems[index].copy(
+                                                        isFavourite = !allFoodItems[index].isFavourite
+                                                    )
+                                                }
                                             }
-                                        }
-                                    )
+                                        )
+                                    }
                                 }
 
                                 // Scroll to Top Button
@@ -282,7 +357,7 @@ class MainActivity : ComponentActivity() {
                                     FloatingActionButton(
                                         onClick = {
                                             scope.launch {
-                                                scrollState.animateScrollTo(0)
+                                                lazyListState.animateScrollToItem(0)
                                             }
                                         },
                                         containerColor = MaterialTheme.colorScheme.primaryContainer,
@@ -298,7 +373,6 @@ class MainActivity : ComponentActivity() {
                                 }
                             }
 
-                            // Fixed section
                             NavBar(modifier = Modifier.padding(top = 8.dp))
                         }
                     }
@@ -318,6 +392,8 @@ fun TopBar(
     modifier: Modifier = Modifier
 ) {
     val pinkColor = Color(0xFFFF69B4)
+    val focusManager = LocalFocusManager.current
+
     Row(
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically,
@@ -331,6 +407,7 @@ fun TopBar(
             IconButton(onClick = { 
                 onSearchToggle(false)
                 onQueryChange("") 
+                focusManager.clearFocus()
             }) {
                 Icon(Icons.Filled.Menu, contentDescription = "Back", tint = pinkColor)
             }
@@ -340,17 +417,24 @@ fun TopBar(
                 onValueChange = onQueryChange,
                 placeholder = { Text("Search food...", color = MaterialTheme.colorScheme.onSurfaceVariant) },
                 modifier = Modifier.weight(1f),
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                keyboardActions = KeyboardActions(onSearch = { focusManager.clearFocus() }),
+                trailingIcon = {
+                    if (query.isNotEmpty()) {
+                        IconButton(onClick = { onQueryChange("") }) {
+                            Icon(Icons.Filled.Close, contentDescription = "Clear", tint = pinkColor.copy(alpha = 0.7f))
+                        }
+                    }
+                },
                 colors = TextFieldDefaults.colors(
                     focusedContainerColor = Color.Transparent,
                     unfocusedContainerColor = Color.Transparent,
                     disabledContainerColor = Color.Transparent,
                     focusedIndicatorColor = Color.Transparent,
-                    unfocusedIndicatorColor = Color.Transparent,
-                    focusedTextColor = MaterialTheme.colorScheme.onSurface,
-                    unfocusedTextColor = MaterialTheme.colorScheme.onSurface
+                    unfocusedIndicatorColor = Color.Transparent
                 )
             )
-            IconButton(onClick = { /* Action */ }) {
+            IconButton(onClick = { focusManager.clearFocus() }) {
                 Icon(Icons.Filled.Search, contentDescription = "Search", tint = pinkColor)
             }
         } else {
@@ -465,58 +549,46 @@ fun CategoryItem(
 fun FoodCategory(
     searchQuery: String,
     selectedCategory: String,
-    recentItems: List<FoodItemData>,
+    allFoodItems: List<FoodItemData>,
+    recentNames: List<String>,
     onFoodClick: (FoodItemData) -> Unit,
+    onFavouriteToggle: (FoodItemData) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    // Defined once for reuse across categories
-    val nasmak = FoodItemData(R.drawable.nasmak, "Nasi Lemak", isFavourite = true)
-    val beefrendang = FoodItemData(R.drawable.beefrendang, "Beef Rendang")
-    val satay = FoodItemData(R.drawable.satay, "Satay")
-    val pekingduck = FoodItemData(R.drawable.pekingduck, "Peking Duck")
-    val xiaolongbao = FoodItemData(R.drawable.xiaolongbao, "Xiaolongbao")
-    val chowmein = FoodItemData(R.drawable.chowmein, "Chow Mein")
-    val butterchicken = FoodItemData(R.drawable.butterchicken, "Butter Chicken", isFavourite = true)
-    val biryani = FoodItemData(R.drawable.biryani, "Biryani")
-    val samosa = FoodItemData(R.drawable.samosa, "Samosa")
-    val pizza = FoodItemData(R.drawable.margherita_pizza, "Margherita Pizza")
-    val lasagna = FoodItemData(R.drawable.lasagna, "Lasagna")
-    val spaghetti = FoodItemData(R.drawable.spaghetti_bolognese, "Spaghetti Bolognese")
+    // Optimization: Use derivedStateOf to automatically track state changes in allFoodItems and recentNames.
+    // This recalculates only when relevant data changes.
+    val filteredCategories by remember(searchQuery, selectedCategory, allFoodItems, recentNames) {
+        derivedStateOf {
+            val baseList = when (selectedCategory) {
+                "Favourite" -> allFoodItems.filter { it.isFavourite }
+                "Recent" -> recentNames.mapNotNull { name -> allFoodItems.find { it.name == name } }
+                else -> allFoodItems
+            }
 
-    val originCategories = mapOf(
-        "Malay" to listOf(nasmak, beefrendang, satay),
-        "Chinese" to listOf(pekingduck, xiaolongbao, chowmein),
-        "Indian" to listOf(butterchicken, biryani, samosa),
-        "Italian" to listOf(pizza, lasagna, spaghetti)
-    )
+            val itemsWithSearch = baseList.filter { it.name.contains(searchQuery, ignoreCase = true) }
 
-    // TODO: Automatic labelling based on ingredients list (to be implemented)
-    val typeCategories = mapOf(
-        "Main Course" to listOf(nasmak, beefrendang, pekingduck, butterchicken, biryani, pizza, lasagna, spaghetti),
-        "Appetizer" to listOf(satay, xiaolongbao, samosa),
-        "Chicken-based" to listOf(pekingduck, butterchicken, satay),
-        "Protein" to listOf(beefrendang, pekingduck, butterchicken, satay),
-        "Carbs" to listOf(nasmak, chowmein, biryani, pizza, lasagna, spaghetti),
-        "Vegan" to listOf(samosa),
-        "Halal" to listOf(nasmak, beefrendang, satay, butterchicken, biryani, samosa),
-        "Non-Halal" to listOf(pekingduck, xiaolongbao, chowmein, pizza, lasagna, spaghetti),
-        "Dairy" to listOf(butterchicken, pizza, lasagna),
-        "Non-Dairy" to listOf(nasmak, beefrendang, satay, pekingduck, xiaolongbao, chowmein, biryani, samosa, spaghetti)
-    )
-
-    val favouriteItems = listOf(nasmak, butterchicken)
-
-    val displayCategories = when (selectedCategory) {
-        "Origin" -> originCategories
-        "Type" -> typeCategories
-        "Favourite" -> mapOf("Your Favourites" to favouriteItems)
-        "Recent" -> mapOf("Recently Viewed" to recentItems)
-        else -> originCategories
+            if (selectedCategory == "Favourite" || selectedCategory == "Recent") {
+                if (itemsWithSearch.isEmpty()) emptyMap()
+                else mapOf((if (selectedCategory == "Favourite") "Your Favourites" else "Recently Viewed") to itemsWithSearch)
+            } else {
+                val groups = mutableMapOf<String, List<FoodItemData>>()
+                if (selectedCategory == "Origin") {
+                    itemsWithSearch.forEach { item ->
+                        groups[item.origin] = (groups[item.origin] ?: emptyList()) + item
+                    }
+                } else { // "Type"
+                    val typeTags = listOf("Main Course", "Appetizer", "Chicken-based", "Protein", "Carbs", "Vegan", "Halal", "Non-Halal", "Dairy", "Non-Dairy")
+                    typeTags.forEach { tag ->
+                        val itemsForTag = itemsWithSearch.filter { it.tags.contains(tag) }
+                        if (itemsForTag.isNotEmpty()) {
+                            groups[tag] = itemsForTag
+                        }
+                    }
+                }
+                groups
+            }
+        }
     }
-
-    val filteredCategories = displayCategories.mapValues { (_, items) ->
-        items.filter { it.name.contains(searchQuery, ignoreCase = true) }
-    }.filter { it.value.isNotEmpty() }
 
     Column(
         modifier = modifier.fillMaxWidth(),
@@ -535,7 +607,12 @@ fun FoodCategory(
         } else {
             filteredCategories.forEach { (categoryName, items) ->
                 FoodSectionHeader(categoryName, onClick = { /* Action for category */ })
-                FoodRow(items, onFoodClick = onFoodClick)
+                
+                if (selectedCategory == "Favourite" || selectedCategory == "Recent") {
+                    FoodGridRow(items, onFoodClick = onFoodClick, onFavouriteToggle = onFavouriteToggle)
+                } else {
+                    FoodRow(items, onFoodClick = onFoodClick, onFavouriteToggle = onFavouriteToggle)
+                }
             }
         }
     }
@@ -566,23 +643,65 @@ fun FoodSectionHeader(title: String, onClick: () -> Unit = {}) {
 }
 
 @Composable
-fun FoodRow(items: List<FoodItemData>, onFoodClick: (FoodItemData) -> Unit) {
-    // 2. Row handles the scroll. We remove weight(1f) from children so they can expand past screen width.
-    Row(
+fun FoodRow(items: List<FoodItemData>, onFoodClick: (FoodItemData) -> Unit, onFavouriteToggle: (FoodItemData) -> Unit) {
+    // Horizontal row for Origin and Type categories (uses fixed width)
+    LazyRow(
+        contentPadding = PaddingValues(horizontal = 0.dp),
         horizontalArrangement = Arrangement.spacedBy(16.dp),
         modifier = Modifier
             .fillMaxWidth()
             .padding(vertical = 8.dp)
-            .horizontalScroll(rememberScrollState())
     ) {
-        items.forEach { item ->
-            FoodItem(item, onClick = { onFoodClick(item) })
+        items(items, key = { it.name }) { item ->
+            FoodItem(
+                item = item, 
+                onClick = { onFoodClick(item) },
+                onFavouriteToggle = { onFavouriteToggle(item) },
+                modifier = Modifier.width(140.dp) // Fixed width restored for horizontal scrolling
+            )
         }
     }
 }
 
 @Composable
-fun FoodItem(item: FoodItemData, modifier: Modifier = Modifier, onClick: () -> Unit = {}) {
+fun FoodGridRow(items: List<FoodItemData>, onFoodClick: (FoodItemData) -> Unit, onFavouriteToggle: (FoodItemData) -> Unit) {
+    // Logic updated to arrange items as a 2-column vertical grid:
+    // 6 5
+    // 4 3
+    // 2 1
+    Column(
+        modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        items.chunked(2).forEach { rowItems ->
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                rowItems.forEach { item ->
+                    FoodItem(
+                        item = item, 
+                        onClick = { onFoodClick(item) },
+                        onFavouriteToggle = { onFavouriteToggle(item) },
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+                // If there's only one item in the last row, add a spacer to keep alignment
+                if (rowItems.size == 1) {
+                    Spacer(modifier = Modifier.weight(1f))
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun FoodItem(
+    item: FoodItemData, 
+    modifier: Modifier = Modifier, 
+    onClick: () -> Unit = {},
+    onFavouriteToggle: () -> Unit = {}
+) {
     Surface(
         onClick = onClick,
         color = Color.Transparent,
@@ -600,36 +719,38 @@ fun FoodItem(item: FoodItemData, modifier: Modifier = Modifier, onClick: () -> U
                     contentDescription = item.name,
                     contentScale = ContentScale.Crop,
                     modifier = Modifier
-                        .size(140.dp)
+                        .fillMaxWidth()
+                        .height(140.dp)
                         .clip(RoundedCornerShape(16.dp))
                 )
                 
-                // Small heart icon with circle background for favourites
-                if (item.isFavourite) {
-                    Surface(
-                        shape = CircleShape,
-                        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.7f),
+                // Optimized toggleable heart icon with backdrop
+                Surface(
+                    shape = CircleShape,
+                    color = MaterialTheme.colorScheme.surface.copy(alpha = 0.6f),
+                    modifier = Modifier
+                        .padding(8.dp)
+                        .size(32.dp)
+                        .align(Alignment.TopEnd)
+                        .clickable { onFavouriteToggle() }
+                ) {
+                    Icon(
+                        imageVector = if (item.isFavourite) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
+                        contentDescription = "Favourite",
+                        tint = if (item.isFavourite) Color(0xFFFF69B4) else MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier
-                            .padding(8.dp)
-                            .size(32.dp)
-                            .align(Alignment.TopEnd)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Filled.Favorite,
-                            contentDescription = "Favourite",
-                            tint = Color(0xFFFF69B4),
-                            modifier = Modifier
-                                .padding(6.dp)
-                                .fillMaxSize()
-                        )
-                    }
+                            .padding(6.dp)
+                            .fillMaxSize()
+                    )
                 }
             }
             Text(
                 text = item.name,
-                style = MaterialTheme.typography.bodyLarge,
+                style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium),
                 color = MaterialTheme.colorScheme.onSurface,
-                textAlign = TextAlign.Center
+                textAlign = TextAlign.Center,
+                maxLines = 1,
+                modifier = Modifier.fillMaxWidth()
             )
         }
     }
@@ -799,8 +920,10 @@ fun FoodAppPreview() {
                             FoodCategory(
                                 searchQuery = searchQuery,
                                 selectedCategory = selectedCategory,
-                                recentItems = emptyList(),
-                                onFoodClick = {}
+                                allFoodItems = emptyList(),
+                                recentNames = emptyList(),
+                                onFoodClick = {},
+                                onFavouriteToggle = {}
                             )
                         }
 
