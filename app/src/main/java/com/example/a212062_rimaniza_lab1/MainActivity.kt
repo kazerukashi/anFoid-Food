@@ -2,15 +2,20 @@ package com.example.a212062_rimaniza_lab1
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity
-import com.example.a212062_rimaniza_lab1.R
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -27,28 +32,26 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.text.KeyboardActions
-import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.ui.platform.LocalFocusManager
-import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.filled.MenuBook
 import androidx.compose.material.icons.filled.AccessTime
 import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.CalendarMonth
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
-import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.Flatware
 import androidx.compose.material.icons.filled.Groups
 import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.LightMode
 import androidx.compose.material.icons.filled.Menu
@@ -57,6 +60,9 @@ import androidx.compose.material.icons.filled.Public
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.ShoppingCart
+import androidx.compose.material.icons.outlined.Info
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
@@ -64,9 +70,6 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalDrawerSheet
 import androidx.compose.material3.ModalNavigationDrawer
-import androidx.compose.material3.NavigationBar
-import androidx.compose.material3.NavigationBarItem
-import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.NavigationDrawerItem
 import androidx.compose.material3.NavigationDrawerItemDefaults
 import androidx.compose.material3.Surface
@@ -79,6 +82,7 @@ import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
@@ -90,8 +94,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -397,7 +403,6 @@ fun TopBar(
     val focusManager = LocalFocusManager.current
 
     Row(
-        horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically,
         modifier = modifier
             .fillMaxWidth()
@@ -405,58 +410,76 @@ fun TopBar(
             .padding(horizontal = 4.dp)
             .height(56.dp)
     ) {
-        if (isSearchActive) {
-            IconButton(onClick = { 
-                onSearchToggle(false)
-                onQueryChange("") 
-                focusManager.clearFocus()
-            }) {
-                Icon(Icons.Filled.KeyboardArrowLeft, contentDescription = "Back", tint = pinkColor) //change icon to BACK
-            }
-            TextField(
-                singleLine = true,
-                value = query,
-                onValueChange = onQueryChange,
-                placeholder = { Text("Search food...", color = MaterialTheme.colorScheme.onSurfaceVariant) },
-                modifier = Modifier.weight(1f),
-                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-                keyboardActions = KeyboardActions(onSearch = { focusManager.clearFocus() }),
-                trailingIcon = {
-                    if (query.isNotEmpty()) {
-                        IconButton(onClick = { onQueryChange("") }) {
-                            Icon(Icons.Filled.Close, contentDescription = "Clear", tint = pinkColor.copy(alpha = 0.7f))
-                        }
+        AnimatedContent(
+            targetState = isSearchActive,
+            transitionSpec = {
+                if (targetState) {
+                    (fadeIn() + slideInHorizontally { it }).togetherWith(fadeOut() + slideOutHorizontally { -it })
+                } else {
+                    (fadeIn() + slideInHorizontally { -it }).togetherWith(fadeOut() + slideOutHorizontally { it })
+                }
+            },
+            label = "TopBarAnimation",
+            modifier = Modifier.fillMaxSize()
+        ) { active ->
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxSize()
+            ) {
+                if (active) {
+                    IconButton(onClick = { 
+                        onSearchToggle(false)
+                        onQueryChange("") 
+                        focusManager.clearFocus()
+                    }) {
+                        Icon(Icons.AutoMirrored.Filled.KeyboardArrowLeft, contentDescription = "Back", tint = pinkColor)
                     }
-                },
-                colors = TextFieldDefaults.colors(
-                    focusedContainerColor = Color.Transparent,
-                    unfocusedContainerColor = Color.Transparent,
-                    disabledContainerColor = Color.Transparent,
-                    focusedIndicatorColor = Color.Transparent,
-                    unfocusedIndicatorColor = Color.Transparent
-                )
-            )
-            IconButton(onClick = { focusManager.clearFocus() }) {
-                Icon(Icons.Filled.Search, contentDescription = "Search", tint = pinkColor)
-            }
-        } else {
-            IconButton(onClick = onMenuClick) {
-                Icon(Icons.Filled.Menu, contentDescription = "Menu", tint = pinkColor)
-            }
-            
-            Text(
-                text = "anFoid Food",
-                color = pinkColor,
-                style = MaterialTheme.typography.titleLarge.copy(
-                    fontSize = 22.sp,
-                    fontWeight = FontWeight.Bold
-                ),
-                modifier = Modifier.weight(1f),
-                textAlign = TextAlign.Center
-            )
+                    TextField(
+                        singleLine = true,
+                        value = query,
+                        onValueChange = onQueryChange,
+                        placeholder = { Text("Search food...", color = MaterialTheme.colorScheme.onSurfaceVariant) },
+                        modifier = Modifier.weight(1f),
+                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                        keyboardActions = KeyboardActions(onSearch = { focusManager.clearFocus() }),
+                        trailingIcon = {
+                            if (query.isNotEmpty()) {
+                                IconButton(onClick = { onQueryChange("") }) {
+                                    Icon(Icons.Filled.Close, contentDescription = "Clear", tint = pinkColor.copy(alpha = 0.7f))
+                                }
+                            }
+                        },
+                        colors = TextFieldDefaults.colors(
+                            focusedContainerColor = Color.Transparent,
+                            unfocusedContainerColor = Color.Transparent,
+                            disabledContainerColor = Color.Transparent,
+                            focusedIndicatorColor = Color.Transparent,
+                            unfocusedIndicatorColor = Color.Transparent
+                        )
+                    )
+                    IconButton(onClick = { focusManager.clearFocus() }) {
+                        Icon(Icons.Filled.Search, contentDescription = "Search", tint = pinkColor)
+                    }
+                } else {
+                    IconButton(onClick = onMenuClick) {
+                        Icon(Icons.Filled.Menu, contentDescription = "Menu", tint = pinkColor)
+                    }
+                    
+                    Text(
+                        text = "anFoid Food",
+                        color = pinkColor,
+                        style = MaterialTheme.typography.titleLarge.copy(
+                            fontSize = 22.sp,
+                            fontWeight = FontWeight.Bold
+                        ),
+                        modifier = Modifier.weight(1f),
+                        textAlign = TextAlign.Center
+                    )
 
-            IconButton(onClick = { onSearchToggle(true) }) {
-                Icon(Icons.Filled.Search, contentDescription = "Open Search", tint = pinkColor)
+                    IconButton(onClick = { onSearchToggle(true) }) {
+                        Icon(Icons.Filled.Search, contentDescription = "Open Search", tint = pinkColor)
+                    }
+                }
             }
         }
     }
@@ -597,8 +620,15 @@ fun FoodCategory(
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         if (filteredCategories.isEmpty()) {
+            val emptyMessage = when {
+                searchQuery.isNotEmpty() -> "No results found for \"$searchQuery\""
+                selectedCategory == "Favourite" -> "You haven't added any recipes to your favourites."
+                selectedCategory == "Recent" -> "You haven't clicked on any recipe."
+                else -> "No recipes available."
+            }
+            
             Text(
-                text = "No results found for \"$searchQuery\"",
+                text = emptyMessage,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 style = MaterialTheme.typography.bodyLarge,
                 modifier = Modifier
@@ -608,12 +638,47 @@ fun FoodCategory(
             )
         } else {
             filteredCategories.forEach { (categoryName, items) ->
-                FoodSectionHeader(categoryName, onClick = { /* Action for category */ })
-                
-                if (selectedCategory == "Favourite" || selectedCategory == "Recent") {
-                    FoodGridRow(items, onFoodClick = onFoodClick, onFavouriteToggle = onFavouriteToggle)
-                } else {
-                    FoodRow(items, onFoodClick = onFoodClick, onFavouriteToggle = onFavouriteToggle)
+                key(categoryName) {
+                    var isInfoExpanded by remember { mutableStateOf(false) }
+
+                    Column {
+                        FoodSectionHeader(
+                            title = categoryName, 
+                            onClick = { /* Action for category */ },
+                            showInfoIcon = categoryName == "Malay",
+                            onInfoClick = { isInfoExpanded = !isInfoExpanded }
+                        )
+                        
+                        if (categoryName == "Malay") {
+                            AnimatedVisibility(
+                                visible = isInfoExpanded,
+                                enter = expandVertically() + fadeIn(),
+                                exit = shrinkVertically() + fadeOut()
+                            ) {
+                                Card(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(vertical = 8.dp),
+                                    shape = RoundedCornerShape(12.dp),
+                                    colors = CardDefaults.cardColors(
+                                        containerColor = MaterialTheme.colorScheme.secondaryContainer
+                                    )
+                                ) {
+                                    Text(
+                                        text = "Malay food originated from the Malay culture and is known for its rich flavors, featuring coconut milk, lemongrass, and a variety of aromatic spices.",
+                                        modifier = Modifier.padding(16.dp),
+                                        style = MaterialTheme.typography.bodyMedium
+                                    )
+                                }
+                            }
+                        }
+                        
+                        if (selectedCategory == "Favourite" || selectedCategory == "Recent") {
+                            FoodGridRow(items, onFoodClick = onFoodClick, onFavouriteToggle = onFavouriteToggle)
+                        } else {
+                            FoodRow(items, onFoodClick = onFoodClick, onFavouriteToggle = onFavouriteToggle)
+                        }
+                    }
                 }
             }
         }
@@ -621,7 +686,12 @@ fun FoodCategory(
 }
 
 @Composable
-fun FoodSectionHeader(title: String, onClick: () -> Unit = {}) {
+fun FoodSectionHeader(
+    title: String, 
+    onClick: () -> Unit = {},
+    showInfoIcon: Boolean = false,
+    onInfoClick: () -> Unit = {}
+) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.Start,
@@ -641,6 +711,16 @@ fun FoodSectionHeader(title: String, onClick: () -> Unit = {}) {
             tint = Color(0xFFFF69B4),
             modifier = Modifier.size(24.dp)
         )
+        if (showInfoIcon) {
+            IconButton(onClick = onInfoClick) {
+                Icon(
+                    Icons.Outlined.Info,
+                    contentDescription = "Info",
+                    tint = Color(0xFFFF69B4),
+                    modifier = Modifier.size(24.dp)
+                )
+            }
+        }
     }
 }
 
@@ -704,9 +784,9 @@ fun FoodItem(
     onClick: () -> Unit = {},
     onFavouriteToggle: () -> Unit = {}
 ) {
-    Surface(
+    Card(
         onClick = onClick,
-        color = Color.Transparent,
+        colors = CardDefaults.cardColors(containerColor = Color.Transparent),
         shape = RoundedCornerShape(16.dp),
         modifier = modifier
     ) {
