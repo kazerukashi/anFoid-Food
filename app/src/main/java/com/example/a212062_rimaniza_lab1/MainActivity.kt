@@ -2,6 +2,7 @@ package com.example.a212062_rimaniza_lab1
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import com.example.a212062_rimaniza_lab1.R
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.animation.fadeIn
@@ -47,6 +48,7 @@ import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.Flatware
 import androidx.compose.material.icons.filled.Groups
 import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.LightMode
 import androidx.compose.material.icons.filled.Menu
@@ -116,7 +118,7 @@ data class FoodItemData(
         if (lowerIngredients.any { it.contains("rice") || it.contains("noodle") || it.contains("flour") || it.contains("dough") || it.contains("pasta") }) result.add("Carbs")
         
         // Dietary restrictions
-        val nonVegan = listOf("meat", "chicken", "beef", "fish", "egg", "milk", "cheese", "cream", "butter")
+        val nonVegan = listOf("meat", "chicken", "beef", "fish", "egg", "milk", "cheese", "cream", "butter", "duck", "pork", "lamb", "shrimp", "anchovies")
         if (lowerIngredients.none { ing -> nonVegan.any { nv -> ing.contains(nv) } }) result.add("Vegan")
         
         val dairyIng = listOf("milk", "cheese", "cream", "butter", "yogurt")
@@ -409,7 +411,7 @@ fun TopBar(
                 onQueryChange("") 
                 focusManager.clearFocus()
             }) {
-                Icon(Icons.Filled.Menu, contentDescription = "Back", tint = pinkColor)
+                Icon(Icons.Filled.KeyboardArrowLeft, contentDescription = "Back", tint = pinkColor) //change icon to BACK
             }
             TextField(
                 singleLine = true,
