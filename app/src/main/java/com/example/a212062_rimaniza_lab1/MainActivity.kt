@@ -1,182 +1,92 @@
 package com.example.a212062_rimaniza_lab1
 
+import android.Manifest
+import android.content.pm.PackageManager
+import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.expandVertically
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.shrinkVertically
-import androidx.compose.animation.slideInHorizontally
-import androidx.compose.animation.slideOutHorizontally
-import androidx.compose.animation.togetherWith
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.*
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardActions
-import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
+import androidx.compose.material.icons.automirrored.filled.EventNote
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
-import androidx.compose.material.icons.automirrored.filled.MenuBook
-import androidx.compose.material.icons.filled.AccessTime
-import androidx.compose.material.icons.filled.ArrowUpward
-import androidx.compose.material.icons.filled.CalendarMonth
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.DarkMode
-import androidx.compose.material.icons.filled.Favorite
-import androidx.compose.material.icons.filled.FavoriteBorder
-import androidx.compose.material.icons.filled.Flatware
-import androidx.compose.material.icons.filled.Groups
-import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.KeyboardArrowUp
-import androidx.compose.material.icons.filled.LightMode
-import androidx.compose.material.icons.filled.Menu
-import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.Public
-import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material.icons.filled.ShoppingCart
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.material.icons.outlined.Info
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.DrawerValue
-import androidx.compose.material3.FloatingActionButton
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalDrawerSheet
-import androidx.compose.material3.ModalNavigationDrawer
-import androidx.compose.material3.NavigationDrawerItem
-import androidx.compose.material3.NavigationDrawerItemDefaults
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Switch
-import androidx.compose.material3.SwitchDefaults
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextField
-import androidx.compose.material3.TextFieldDefaults
-import androidx.compose.material3.rememberDrawerState
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.derivedStateOf
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.key
-import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.mutableStateListOf
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.content.ContextCompat
+import androidx.navigation.NavController
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.currentBackStackEntryAsState
+import androidx.navigation.compose.rememberNavController
 import com.example.a212062_rimaniza_lab1.ui.theme.A212062_Rimaniza_Lab1Theme
+import com.example.a212062_rimaniza_lab1.ui.theme.AppPink
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 
-// Data class for easier item management
-data class FoodItemData(
-    val imageRes: Int, 
-    val name: String, 
-    val origin: String,
-    val ingredients: List<String>,
-    val isFavourite: Boolean = false
-) {
-    // Automatic Labeling System: Tags are derived from ingredients
-    val tags: List<String> get() {
-        val result = mutableListOf<String>()
-        val lowerIngredients = ingredients.map { it.lowercase() }
-        
-        // Category detection
-        if (lowerIngredients.any { it.contains("chicken") || it.contains("beef") || it.contains("lamb") || it.contains("fish") || it.contains("shrimp") }) result.add("Protein")
-        if (lowerIngredients.any { it.contains("chicken") }) result.add("Chicken-based")
-        if (lowerIngredients.any { it.contains("rice") || it.contains("noodle") || it.contains("flour") || it.contains("dough") || it.contains("pasta") }) result.add("Carbs")
-        
-        // Dietary restrictions
-        val nonVegan = listOf("meat", "chicken", "beef", "fish", "egg", "milk", "cheese", "cream", "butter", "duck", "pork", "lamb", "shrimp", "anchovies")
-        if (lowerIngredients.none { ing -> nonVegan.any { nv -> ing.contains(nv) } }) result.add("Vegan")
-        
-        val dairyIng = listOf("milk", "cheese", "cream", "butter", "yogurt")
-        if (lowerIngredients.any { ing -> dairyIng.any { d -> ing.contains(d) } }) result.add("Dairy")
-        else result.add("Non-Dairy")
-
-        // Halal status (simplified heuristic for demo)
-        val nonHalal = listOf("pork", "lard", "wine", "alcohol", "ham", "bacon")
-        if (lowerIngredients.none { ing -> nonHalal.any { nh -> ing.contains(nh) } }) result.add("Halal")
-        else result.add("Non-Halal")
-
-        return result
-    }
-}
+import androidx.lifecycle.viewmodel.compose.viewModel
 
 class MainActivity : ComponentActivity() {
+    private val requestPermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { isGranted: Boolean ->
+        // Handle permission result if needed
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+                requestPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+            }
+        }
+
         setContent {
-            var isDarkTheme by remember { mutableStateOf(true) }
-            A212062_Rimaniza_Lab1Theme(darkTheme = isDarkTheme) {
-                var searchQuery by remember { mutableStateOf("") }
-                var isSearchActive by remember { mutableStateOf(false) }
-                var selectedCategory by remember { mutableStateOf("Origin") }
+            val viewModel: FoodViewModel = viewModel()
+            
+            A212062_Rimaniza_Lab1Theme(darkTheme = viewModel.isDarkTheme) {
+                val navController = rememberNavController()
+                val navBackStackEntry by navController.currentBackStackEntryAsState()
+                val currentRoute = navBackStackEntry?.destination?.route
+
                 val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
                 val scope = rememberCoroutineScope()
-                var selectedDrawerItem by remember { mutableStateOf("Home") }
-                val pinkColor = Color(0xFFFF69B4)
 
-                // Master list of all food items with Ingredients for Automatic Labeling
-                val allFoodItems = remember {
-                    mutableStateListOf(
-                        FoodItemData(R.drawable.nasmak, "Nasi Lemak", "Malay", listOf("Rice", "Coconut Milk", "Anchovies", "Peanuts", "Egg", "Sambal"), isFavourite = true),
-                        FoodItemData(R.drawable.beefrendang, "Beef Rendang", "Malay", listOf("Beef", "Coconut Milk", "Lemongrass", "Galangal", "Spices")),
-                        FoodItemData(R.drawable.satay, "Satay", "Malay", listOf("Chicken", "Turmeric", "Lemongrass", "Peanut Sauce")),
-                        FoodItemData(R.drawable.pekingduck, "Peking Duck", "Chinese", listOf("Duck", "Hoisin Sauce", "Honey", "Cucumber", "Scallion")),
-                        FoodItemData(R.drawable.xiaolongbao, "Xiaolongbao", "Chinese", listOf("Minced Pork", "Wheat Flour", "Soup Broth", "Ginger"), isFavourite = true),
-                        FoodItemData(R.drawable.chowmein, "Chow Mein", "Chinese", listOf("Egg Noodles", "Soy Sauce", "Cabbage", "Carrot", "Pork")),
-                        FoodItemData(R.drawable.butterchicken, "Butter Chicken", "Indian", listOf("Chicken", "Butter", "Cream", "Tomato", "Garam Masala"), isFavourite = true),
-                        FoodItemData(R.drawable.biryani, "Biryani", "Indian", listOf("Basmati Rice", "Chicken", "Yogurt", "Saffron", "Spices")),
-                        FoodItemData(R.drawable.samosa, "Samosa", "Indian", listOf("Potato", "Peas", "Wheat Flour", "Spices")),
-                        FoodItemData(R.drawable.margherita_pizza, "Margherita Pizza", "Italian", listOf("Dough", "Tomato", "Mozzarella Cheese", "Basil", "Olive Oil"), isFavourite = true),
-                        FoodItemData(R.drawable.lasagna, "Lasagna", "Italian", listOf("Pasta", "Minced Beef", "Tomato Sauce", "Béchamel", "Cheese")),
-                        FoodItemData(R.drawable.spaghetti_bolognese, "Spaghetti Bolognese", "Italian", listOf("Spaghetti", "Beef", "Tomato", "Onion", "Garlic"))
-                    )
-                }
 
-                // State for recent items (storing names to keep synced with master list).
-                val recentNames = remember { mutableStateListOf<String>() }
-                // Limit for recent items. Easy to edit later.
-                val MAX_RECENT_ITEMS = 30
+                val hideNavBarRoutes = listOf("Profile", "Settings")
+                val isNavBarVisible = currentRoute !in hideNavBarRoutes && currentRoute?.startsWith("Detail") == false
 
                 ModalNavigationDrawer(
                     drawerState = drawerState,
@@ -188,98 +98,87 @@ class MainActivity : ComponentActivity() {
                         ) {
                             Spacer(Modifier.height(48.dp))
                             
-                            // Side Menu Logo
+                            // Side Menu Logo - Larger size as requested
                             Text(
                                 text = "anFoid Food",
-                                color = pinkColor,
+                                color = AppPink,
                                 style = MaterialTheme.typography.titleLarge.copy(
                                     fontWeight = FontWeight.Bold,
-                                    fontSize = 24.sp
+                                    fontSize = 32.sp
                                 ),
                                 modifier = Modifier
                                     .padding(horizontal = 28.dp)
-                                    .padding(top = 16.dp, bottom = 24.dp),
+                                    .padding(top = 16.dp, bottom = 32.dp),
                                 textAlign = TextAlign.Start
                             )
 
                             NavigationDrawerItem(
                                 icon = { Icon(Icons.Filled.Home, contentDescription = null) },
                                 label = { Text("Home") },
-                                selected = selectedDrawerItem == "Home",
+                                selected = currentRoute == "Home",
                                 onClick = {
-                                    selectedDrawerItem = "Home"
+                                    navController.navigate("Home") {
+                                        popUpTo("Home") { inclusive = true }
+                                    }
                                     scope.launch { drawerState.close() }
                                 },
                                 colors = NavigationDrawerItemDefaults.colors(
-                                    selectedContainerColor = pinkColor.copy(alpha = 0.2f),
-                                    selectedIconColor = pinkColor,
-                                    selectedTextColor = pinkColor,
+                                    selectedContainerColor = AppPink.copy(alpha = 0.2f),
+                                    selectedIconColor = AppPink,
+                                    selectedTextColor = AppPink,
                                     unselectedContainerColor = Color.Transparent,
-                                    unselectedIconColor = pinkColor,
+                                    unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    unselectedTextColor = MaterialTheme.colorScheme.onSurface
+                                )
+                            )
+                            NavigationDrawerItem(
+                                icon = { Icon(Icons.Filled.Dashboard, contentDescription = null) },
+                                label = { Text("Community") },
+                                selected = currentRoute == "Community",
+                                onClick = {
+                                    navController.navigate("Community")
+                                    scope.launch { drawerState.close() }
+                                },
+                                colors = NavigationDrawerItemDefaults.colors(
+                                    selectedContainerColor = AppPink.copy(alpha = 0.2f),
+                                    selectedIconColor = AppPink,
+                                    selectedTextColor = AppPink,
+                                    unselectedContainerColor = Color.Transparent,
+                                    unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
                                     unselectedTextColor = MaterialTheme.colorScheme.onSurface
                                 )
                             )
                             NavigationDrawerItem(
                                 icon = { Icon(Icons.Filled.Person, contentDescription = null) },
                                 label = { Text("Profile") },
-                                selected = selectedDrawerItem == "Profile",
+                                selected = currentRoute == "Profile",
                                 onClick = {
-                                    selectedDrawerItem = "Profile"
+                                    navController.navigate("Profile")
                                     scope.launch { drawerState.close() }
                                 },
                                 colors = NavigationDrawerItemDefaults.colors(
-                                    selectedContainerColor = pinkColor.copy(alpha = 0.2f),
-                                    selectedIconColor = pinkColor,
-                                    selectedTextColor = pinkColor,
+                                    selectedContainerColor = AppPink.copy(alpha = 0.2f),
+                                    selectedIconColor = AppPink,
+                                    selectedTextColor = AppPink,
                                     unselectedContainerColor = Color.Transparent,
-                                    unselectedIconColor = pinkColor,
+                                    unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
                                     unselectedTextColor = MaterialTheme.colorScheme.onSurface
                                 )
                             )
                             NavigationDrawerItem(
                                 icon = { Icon(Icons.Filled.Settings, contentDescription = null) },
                                 label = { Text("Settings") },
-                                selected = selectedDrawerItem == "Settings",
+                                selected = currentRoute == "Settings",
                                 onClick = {
-                                    selectedDrawerItem = "Settings"
+                                    navController.navigate("Settings")
                                     scope.launch { drawerState.close() }
                                 },
                                 colors = NavigationDrawerItemDefaults.colors(
-                                    selectedContainerColor = pinkColor.copy(alpha = 0.2f),
-                                    selectedIconColor = pinkColor,
-                                    selectedTextColor = pinkColor,
+                                    selectedContainerColor = AppPink.copy(alpha = 0.2f),
+                                    selectedIconColor = AppPink,
+                                    selectedTextColor = AppPink,
                                     unselectedContainerColor = Color.Transparent,
-                                    unselectedIconColor = pinkColor,
-                                    unselectedTextColor = MaterialTheme.colorScheme.onSurface
-                                )
-                            )
-
-                            Spacer(modifier = Modifier.height(8.dp))
-                            
-                            // Dark Mode Toggle
-                            NavigationDrawerItem(
-                                icon = { 
-                                    Icon(
-                                        if (isDarkTheme) Icons.Filled.DarkMode else Icons.Filled.LightMode, 
-                                        contentDescription = null 
-                                    ) 
-                                },
-                                label = { Text("Dark Mode") },
-                                selected = false,
-                                badge = {
-                                    Switch(
-                                        checked = isDarkTheme,
-                                        onCheckedChange = { isDarkTheme = it },
-                                        colors = SwitchDefaults.colors(
-                                            checkedThumbColor = pinkColor,
-                                            checkedTrackColor = pinkColor.copy(alpha = 0.5f)
-                                        )
-                                    )
-                                },
-                                onClick = { isDarkTheme = !isDarkTheme },
-                                colors = NavigationDrawerItemDefaults.colors(
-                                    unselectedContainerColor = Color.Transparent,
-                                    unselectedIconColor = pinkColor,
+                                    unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
                                     unselectedTextColor = MaterialTheme.colorScheme.onSurface
                                 )
                             )
@@ -293,96 +192,314 @@ class MainActivity : ComponentActivity() {
                         val lazyListState = rememberLazyListState()
                         val showButton by remember {
                             derivedStateOf {
-                                lazyListState.firstVisibleItemIndex > 2
+                                lazyListState.firstVisibleItemIndex > 0
                             }
                         }
 
                         Column(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .padding(horizontal = 8.dp)
+                            modifier = Modifier.fillMaxSize()
                         ) {
-                            Spacer(modifier = Modifier.size(24.dp))
-                            TopBar(
-                                query = searchQuery,
-                                onQueryChange = { searchQuery = it },
-                                isSearchActive = isSearchActive,
-                                onSearchToggle = { isSearchActive = it },
-                                onMenuClick = { scope.launch { drawerState.open() } }
-                            )
-                            Spacer(modifier = Modifier.height(16.dp))
-
-                            Box(modifier = Modifier.weight(1f)) {
-                                // Optimized: Using LazyColumn instead of Column + verticalScroll
-                                LazyColumn(
-                                    state = lazyListState,
-                                    modifier = Modifier.fillMaxSize(),
-                                    verticalArrangement = Arrangement.spacedBy(16.dp),
-                                    contentPadding = PaddingValues(bottom = 16.dp)
-                                ) {
-                                    item {
-                                        Category(
-                                            selectedCategory = selectedCategory,
-                                            onCategoryClick = { selectedCategory = it }
-                                        )
-                                    }
+                            NavHost(
+                                navController = navController,
+                                startDestination = "Home",
+                                modifier = Modifier.weight(1f),
+                                enterTransition = {
+                                    val target = targetState.destination.route ?: ""
+                                    val initial = initialState.destination.route ?: ""
+                                    val order = listOf("Home", "Shopping", "Planner", "Community", "Profile", "Settings", "Detail", "FoodDetail")
+                                    val targetIndex = order.indexOfFirst { target.split("/")[0] == it }
+                                    val initialIndex = order.indexOfFirst { initial.split("/")[0] == it }
                                     
-                                    // Food Categories as Lazy Items
-                                    item {
-                                        FoodCategory(
-                                            searchQuery = searchQuery,
-                                            selectedCategory = selectedCategory,
-                                            allFoodItems = allFoodItems,
-                                            recentNames = recentNames,
-                                            onFoodClick = { clickedItem ->
-                                                recentNames.removeAll { it == clickedItem.name }
-                                                recentNames.add(0, clickedItem.name)
-                                                if (recentNames.size > MAX_RECENT_ITEMS) {
-                                                    recentNames.removeAt(recentNames.size - 1)
-                                                }
-                                            },
-                                            onFavouriteToggle = { toggledItem ->
-                                                val index = allFoodItems.indexOfFirst { it.name == toggledItem.name }
-                                                if (index != -1) {
-                                                    allFoodItems[index] = allFoodItems[index].copy(
-                                                        isFavourite = !allFoodItems[index].isFavourite
-                                                    )
-                                                }
-                                            }
-                                        )
+                                    val direction = if (targetIndex > initialIndex) {
+                                        AnimatedContentTransitionScope.SlideDirection.Left
+                                    } else {
+                                        AnimatedContentTransitionScope.SlideDirection.Right
                                     }
-                                }
 
-                                // Scroll to Top Button
-                                androidx.compose.animation.AnimatedVisibility(
-                                    visible = showButton,
-                                    enter = fadeIn(),
-                                    exit = fadeOut(),
-                                    modifier = Modifier
-                                        .align(Alignment.BottomEnd)
-                                        .padding(16.dp)
-                                ) {
-                                    FloatingActionButton(
-                                        onClick = {
-                                            scope.launch {
-                                                lazyListState.animateScrollToItem(0)
-                                            }
+                                    slideIntoContainer(
+                                        direction,
+                                        animationSpec = tween(400)
+                                    ) + fadeIn(animationSpec = tween(400))
+                                },
+                                exitTransition = {
+                                    val target = targetState.destination.route ?: ""
+                                    val initial = initialState.destination.route ?: ""
+                                    val order = listOf("Home", "Shopping", "Planner", "Community", "Profile", "Settings", "Detail", "FoodDetail")
+                                    val targetIndex = order.indexOfFirst { target.split("/")[0] == it }
+                                    val initialIndex = order.indexOfFirst { initial.split("/")[0] == it }
+
+                                    val direction = if (targetIndex > initialIndex) {
+                                        AnimatedContentTransitionScope.SlideDirection.Left
+                                    } else {
+                                        AnimatedContentTransitionScope.SlideDirection.Right
+                                    }
+
+                                    slideOutOfContainer(
+                                        direction,
+                                        animationSpec = tween(400)
+                                    ) + fadeOut(animationSpec = tween(400))
+                                },
+                                popEnterTransition = {
+                                    val target = targetState.destination.route ?: ""
+                                    val initial = initialState.destination.route ?: ""
+                                    val order = listOf("Home", "Shopping", "Planner", "Community", "Profile", "Settings", "Detail", "FoodDetail")
+                                    val targetIndex = order.indexOfFirst { target.split("/")[0] == it }
+                                    val initialIndex = order.indexOfFirst { initial.split("/")[0] == it }
+
+                                    val direction = if (targetIndex > initialIndex) {
+                                        AnimatedContentTransitionScope.SlideDirection.Left
+                                    } else {
+                                        AnimatedContentTransitionScope.SlideDirection.Right
+                                    }
+
+                                    slideIntoContainer(
+                                        direction,
+                                        animationSpec = tween(400)
+                                    ) + fadeIn(animationSpec = tween(400))
+                                },
+                                popExitTransition = {
+                                    val target = targetState.destination.route ?: ""
+                                    val initial = initialState.destination.route ?: ""
+                                    val order = listOf("Home", "Shopping", "Planner", "Community", "Profile", "Settings", "Detail", "FoodDetail")
+                                    val targetIndex = order.indexOfFirst { target.split("/")[0] == it }
+                                    val initialIndex = order.indexOfFirst { initial.split("/")[0] == it }
+
+                                    val direction = if (targetIndex > initialIndex) {
+                                        AnimatedContentTransitionScope.SlideDirection.Left
+                                    } else {
+                                        AnimatedContentTransitionScope.SlideDirection.Right
+                                    }
+
+                                    slideOutOfContainer(
+                                        direction,
+                                        animationSpec = tween(400)
+                                    ) + fadeOut(animationSpec = tween(400))
+                                }
+                            ) {
+                                composable("Home") {
+                                    HomeScreen(
+                                        searchQuery = viewModel.searchQuery,
+                                        onQueryChange = { viewModel.searchQuery = it },
+                                        isSearchActive = viewModel.isSearchActive,
+                                        onSearchToggle = { viewModel.isSearchActive = it },
+                                        onMenuClick = { scope.launch { drawerState.open() } },
+                                        selectedCategory = viewModel.selectedCategory,
+                                        onCategoryClick = { viewModel.selectedCategory = it },
+                                        allFoodItems = viewModel.allFoodItems,
+                                        recentNames = viewModel.recentNames,
+                                        maxRecentItems = viewModel.maxRecentItems,
+                                        lazyListState = lazyListState,
+                                        showButton = showButton,
+                                        coroutineScope = scope,
+                                        onMoreClick = { categoryName ->
+                                            navController.navigate("Detail/$categoryName")
                                         },
-                                        containerColor = MaterialTheme.colorScheme.primaryContainer,
-                                        contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                                        shape = CircleShape,
-                                        modifier = Modifier.size(56.dp)
-                                    ) {
-                                        Icon(
-                                            Icons.Filled.KeyboardArrowUp,
-                                            contentDescription = "Scroll to top"
+                                        onFoodClick = { clickedItem ->
+                                            viewModel.addToRecent(clickedItem)
+                                            navController.navigate("FoodDetail/${clickedItem.id}")
+                                        }
+                                    )
+                                }
+                                composable("Shopping") {
+                                    ShoppingScreen(
+                                        onMenuClick = { scope.launch { drawerState.open() } },
+                                        shoppingItems = viewModel.shoppingItems,
+                                        onAddItem = { viewModel.addShoppingItem(it) },
+                                        onUpdateItem = { viewModel.updateShoppingItem(it) },
+                                        onDeleteItem = { viewModel.deleteShoppingItem(it) },
+                                        onDeleteIngredient = { viewModel.deleteShoppingItemsByIngredient(it) },
+                                        onCheckedChange = { ingredient, checked -> 
+                                            viewModel.toggleShoppingItemChecked(ingredient, checked)
+                                        },
+                                        onItemCheckedChange = { id, checked ->
+                                            viewModel.toggleShoppingItemCheckedById(id, checked)
+                                        }
+                                    )
+                                }
+                                composable("Planner") {
+                                    val context = LocalContext.current
+                                    PlannerScreen(
+                                        onMenuClick = { scope.launch { drawerState.open() } },
+                                        plannerEvents = viewModel.plannerEvents,
+                                        allFoodItems = viewModel.allFoodItems,
+                                        onAddEvent = { viewModel.addPlannerEvent(context, it) },
+                                        onUpdateEvent = { viewModel.updatePlannerEvent(context, it) },
+                                        onDeleteEvent = { viewModel.deletePlannerEvent(context, it) }
+                                    )
+                                }
+                                composable("Community") {
+                                    CommunityScreen(
+                                        onMenuClick = { scope.launch { drawerState.open() } },
+                                        onGoToProfile = { navController.navigate("Profile") }
+                                    )
+                                }
+                                composable("Profile") {
+                                    ProfileScreen(
+                                        onMenuClick = { scope.launch { drawerState.open() } },
+                                        onBackClick = { navController.popBackStack() }
+                                    )
+                                }
+                                composable("Settings") {
+                                    SettingsScreen(
+                                        isDarkTheme = viewModel.isDarkTheme,
+                                        onThemeChange = { viewModel.isDarkTheme = it },
+                                        maxRecentItems = viewModel.maxRecentItems,
+                                        onMaxRecentItemsChange = { viewModel.maxRecentItems = it },
+                                        onMenuClick = { scope.launch { drawerState.open() } },
+                                        onBackClick = { navController.popBackStack() }
+                                    )
+                                }
+                                composable("Detail/{categoryName}") { backStackEntry ->
+                                    val categoryName = backStackEntry.arguments?.getString("categoryName") ?: ""
+                                    
+                                    val filteredItems = when (viewModel.selectedCategory) {
+                                        "Origin" -> viewModel.allFoodItems.filter { it.origin == categoryName }
+                                        "Type" -> viewModel.allFoodItems.filter { it.tags.contains(categoryName) }
+                                        "Favourite" -> viewModel.allFoodItems.filter { it.isFavourite }
+                                        "Recent" -> viewModel.recentNames.mapNotNull { name -> viewModel.allFoodItems.find { it.name == name } }
+                                        else -> viewModel.allFoodItems
+                                    }
+
+                                    DetailScreen(
+                                        categoryName = categoryName,
+                                        items = filteredItems,
+                                        onBackClick = { navController.popBackStack() },
+                                        onFoodClick = { clickedItem ->
+                                            viewModel.addToRecent(clickedItem)
+                                            navController.navigate("FoodDetail/${clickedItem.id}")
+                                        },
+                                        onFavouriteToggle = { toggledItem ->
+                                            viewModel.toggleFavourite(toggledItem.id)
+                                        }
+                                    )
+                                }
+                                composable("FoodDetail/{foodId}") { backStackEntry ->
+                                    val foodId = backStackEntry.arguments?.getString("foodId") ?: ""
+                                    val foodItem = viewModel.allFoodItems.find { it.id == foodId }
+                                    
+                                    if (foodItem != null) {
+                                        FoodDetailScreen(
+                                            foodItem = foodItem,
+                                            onBackClick = { navController.popBackStack() },
+                                            onFavouriteToggle = {
+                                                viewModel.toggleFavourite(foodId)
+                                            },
+                                            onAddToShoppingList = {
+                                                viewModel.addIngredientsToShoppingList(foodItem)
+                                                navController.navigate("Shopping")
+                                            },
+                                            onAddToPlanner = {
+                                                navController.navigate("Planner")
+                                            }
                                         )
                                     }
                                 }
                             }
 
-                            NavBar(modifier = Modifier.padding(top = 8.dp))
+                            if (isNavBarVisible) {
+                                NavBar(navController = navController, modifier = Modifier.padding(top = 8.dp))
+                            }
                         }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun HomeScreen(
+    searchQuery: String,
+    onQueryChange: (String) -> Unit,
+    isSearchActive: Boolean,
+    onSearchToggle: (Boolean) -> Unit,
+    onMenuClick: () -> Unit,
+    selectedCategory: String,
+    onCategoryClick: (String) -> Unit,
+    allFoodItems: SnapshotStateList<FoodItemData>,
+    recentNames: SnapshotStateList<String>,
+    maxRecentItems: Int,
+    lazyListState: LazyListState,
+    showButton: Boolean,
+    coroutineScope: CoroutineScope,
+    onMoreClick: (String) -> Unit,
+    onFoodClick: (FoodItemData) -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(horizontal = 8.dp)
+    ) {
+        Spacer(modifier = Modifier.size(24.dp))
+        TopBar(
+            query = searchQuery,
+            onQueryChange = onQueryChange,
+            isSearchActive = isSearchActive,
+            onSearchToggle = onSearchToggle,
+            onMenuClick = onMenuClick
+        )
+        Spacer(modifier = Modifier.height(16.dp))
+
+        Box(modifier = Modifier.weight(1f)) {
+            LazyColumn(
+                state = lazyListState,
+                modifier = Modifier.fillMaxSize(),
+                verticalArrangement = Arrangement.spacedBy(16.dp),
+                contentPadding = PaddingValues(bottom = 16.dp)
+            ) {
+                item {
+                    Category(
+                        selectedCategory = selectedCategory,
+                        onCategoryClick = onCategoryClick
+                    )
+                }
+
+                item {
+                        FoodCategory(
+                            searchQuery = searchQuery,
+                            selectedCategory = selectedCategory,
+                            allFoodItems = allFoodItems,
+                            recentNames = recentNames,
+                            onFoodClick = onFoodClick,
+                            onFavouriteToggle = { toggledItem ->
+                                val index = allFoodItems.indexOfFirst { it.id == toggledItem.id }
+                                if (index != -1) {
+                                    allFoodItems[index] = allFoodItems[index].copy(
+                                        isFavourite = !allFoodItems[index].isFavourite
+                                    )
+                                }
+                            },
+                            onMoreClick = onMoreClick
+                        )
+                }
+            }
+
+            // Scroll to Top Button
+            Box(
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(16.dp)
+            ) {
+                androidx.compose.animation.AnimatedVisibility(
+                    visible = showButton,
+                    enter = fadeIn(),
+                    exit = fadeOut()
+                ) {
+                    FloatingActionButton(
+                        onClick = {
+                            coroutineScope.launch {
+                                lazyListState.animateScrollToItem(0)
+                            }
+                        },
+                        containerColor = MaterialTheme.colorScheme.primaryContainer,
+                        contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                        shape = CircleShape,
+                        modifier = Modifier.size(56.dp)
+                    ) {
+                        Icon(
+                            Icons.Filled.ArrowUpward,
+                            contentDescription = "Scroll to top"
+                        )
                     }
                 }
             }
@@ -399,88 +516,70 @@ fun TopBar(
     onMenuClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val pinkColor = Color(0xFFFF69B4)
-    val focusManager = LocalFocusManager.current
-
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = modifier
             .fillMaxWidth()
-            .background(MaterialTheme.colorScheme.surfaceContainerHighest, shape = RoundedCornerShape(25.dp))
-            .padding(horizontal = 4.dp)
             .height(56.dp)
     ) {
-        AnimatedContent(
-            targetState = isSearchActive,
-            transitionSpec = {
-                if (targetState) {
-                    (fadeIn() + slideInHorizontally { it }).togetherWith(fadeOut() + slideOutHorizontally { -it })
-                } else {
-                    (fadeIn() + slideInHorizontally { -it }).togetherWith(fadeOut() + slideOutHorizontally { it })
-                }
-            },
-            label = "TopBarAnimation",
-            modifier = Modifier.fillMaxSize()
-        ) { active ->
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.fillMaxSize()
-            ) {
-                if (active) {
-                    IconButton(onClick = { 
-                        onSearchToggle(false)
-                        onQueryChange("") 
-                        focusManager.clearFocus()
-                    }) {
-                        Icon(Icons.AutoMirrored.Filled.KeyboardArrowLeft, contentDescription = "Back", tint = pinkColor)
-                    }
-                    TextField(
-                        singleLine = true,
-                        value = query,
-                        onValueChange = onQueryChange,
-                        placeholder = { Text("Search food...", color = MaterialTheme.colorScheme.onSurfaceVariant) },
-                        modifier = Modifier.weight(1f),
-                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-                        keyboardActions = KeyboardActions(onSearch = { focusManager.clearFocus() }),
-                        trailingIcon = {
-                            if (query.isNotEmpty()) {
-                                IconButton(onClick = { onQueryChange("") }) {
-                                    Icon(Icons.Filled.Close, contentDescription = "Clear", tint = pinkColor.copy(alpha = 0.7f))
-                                }
-                            }
-                        },
-                        colors = TextFieldDefaults.colors(
-                            focusedContainerColor = Color.Transparent,
-                            unfocusedContainerColor = Color.Transparent,
-                            disabledContainerColor = Color.Transparent,
-                            focusedIndicatorColor = Color.Transparent,
-                            unfocusedIndicatorColor = Color.Transparent
-                        )
-                    )
-                    IconButton(onClick = { focusManager.clearFocus() }) {
-                        Icon(Icons.Filled.Search, contentDescription = "Search", tint = pinkColor)
-                    }
-                } else {
-                    IconButton(onClick = onMenuClick) {
-                        Icon(Icons.Filled.Menu, contentDescription = "Menu", tint = pinkColor)
-                    }
-                    
+        IconButton(onClick = onMenuClick) {
+            Icon(Icons.Filled.Menu, contentDescription = "Menu", tint = AppPink)
+        }
+        
+            Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.CenterStart) {
+                if (!isSearchActive) {
                     Text(
                         text = "anFoid Food",
-                        color = pinkColor,
                         style = MaterialTheme.typography.titleLarge.copy(
-                            fontSize = 22.sp,
-                            fontWeight = FontWeight.Bold
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 24.sp
                         ),
-                        modifier = Modifier.weight(1f),
-                        textAlign = TextAlign.Center
+                        color = AppPink,
+                        modifier = Modifier.padding(start = 8.dp)
                     )
-
-                    IconButton(onClick = { onSearchToggle(true) }) {
-                        Icon(Icons.Filled.Search, contentDescription = "Open Search", tint = pinkColor)
+                }
+                
+                Row(modifier = Modifier.fillMaxWidth()) {
+                    AnimatedVisibility(
+                        visible = isSearchActive,
+                        enter = expandHorizontally(),
+                        exit = shrinkHorizontally()
+                    ) {
+                        TextField(
+                            value = query,
+                            onValueChange = onQueryChange,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 8.dp)
+                                .height(50.dp),
+                            placeholder = { Text("Search recipes...", fontSize = 14.sp) },
+                            singleLine = true,
+                            colors = TextFieldDefaults.colors(
+                                focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                                unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                                focusedIndicatorColor = Color.Transparent,
+                                unfocusedIndicatorColor = Color.Transparent
+                            ),
+                            shape = RoundedCornerShape(25.dp),
+                            leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null, tint = AppPink) },
+                            trailingIcon = {
+                                if (query.isNotEmpty()) {
+                                    IconButton(onClick = { onQueryChange("") }) {
+                                        Icon(Icons.Filled.Close, contentDescription = "Clear", tint = AppPink)
+                                    }
+                                }
+                            }
+                        )
                     }
                 }
             }
+
+        IconButton(onClick = { onSearchToggle(!isSearchActive) }) {
+            Icon(
+                if (isSearchActive) Icons.Filled.Close else Icons.Filled.Search,
+                contentDescription = "Search",
+                tint = AppPink
+            )
         }
     }
 }
@@ -489,50 +588,23 @@ fun TopBar(
 fun Category(
     selectedCategory: String,
     onCategoryClick: (String) -> Unit,
-    modifier: Modifier = Modifier,
+    modifier: Modifier = Modifier
 ) {
-    Column(
+    val categories = listOf("Origin", "Type", "Favourite", "Recent")
+    val icons = listOf(Icons.Filled.Public, Icons.Filled.Flatware, Icons.Filled.Favorite, Icons.Filled.AccessTime)
+
+    LazyRow(
         modifier = modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        contentPadding = PaddingValues(vertical = 8.dp)
     ) {
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.fillMaxWidth()
-        ) {
+        items(categories.size) { index ->
+            val category = categories[index]
             CategoryItem(
-                icon = Icons.Filled.Favorite,
-                label = "Favourite",
-                modifier = Modifier.weight(1f),
-                isSelected = selectedCategory == "Favourite",
-                onClick = { onCategoryClick("Favourite") }
-            )
-            CategoryItem(
-                icon = Icons.Filled.AccessTime,
-                label = "Recent",
-                modifier = Modifier.weight(1f),
-                isSelected = selectedCategory == "Recent",
-                onClick = { onCategoryClick("Recent") }
-            )
-        }
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            CategoryItem(
-                icon = Icons.Filled.Public,
-                label = "Origin",
-                modifier = Modifier.weight(1f),
-                isSelected = selectedCategory == "Origin",
-                onClick = { onCategoryClick("Origin") }
-            )
-            CategoryItem(
-                icon = Icons.Filled.Flatware,
-                label = "Type",
-                modifier = Modifier.weight(1f),
-                isSelected = selectedCategory == "Type",
-                onClick = { onCategoryClick("Type") }
+                icon = icons[index],
+                label = category,
+                isSelected = selectedCategory == category,
+                onClick = { onCategoryClick(category) }
             )
         }
     }
@@ -540,33 +612,27 @@ fun Category(
 
 @Composable
 fun CategoryItem(
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    icon: ImageVector,
     label: String,
     modifier: Modifier = Modifier,
     isSelected: Boolean = false,
     onClick: () -> Unit = {}
 ) {
-    val pinkColor = Color(0xFFFF69B4)
-    val backgroundColor = if (isSelected) pinkColor else MaterialTheme.colorScheme.surfaceContainerHighest
-    val contentColor = if (isSelected) Color.White else pinkColor
-    val textColor = if (isSelected) Color.White else MaterialTheme.colorScheme.onSurface
-
-    Row(
+    Surface(
+        onClick = onClick,
+        shape = RoundedCornerShape(20.dp),
+        color = if (isSelected) AppPink else MaterialTheme.colorScheme.surfaceVariant,
+        contentColor = if (isSelected) Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
         modifier = modifier
-            .clip(RoundedCornerShape(15.dp))
-            .background(backgroundColor)
-            .clickable(onClick = onClick)
-            .padding(vertical = 14.dp, horizontal = 12.dp),
-        verticalAlignment = Alignment.CenterVertically
     ) {
-        Icon(icon, contentDescription = label, tint = contentColor, modifier = Modifier.size(20.dp))
-        Text(
-            text = label,
-            style = MaterialTheme.typography.titleMedium.copy(fontSize = 16.sp),
-            textAlign = TextAlign.Left,
-            color = textColor,
-            modifier = Modifier.padding(start = 8.dp)
-        )
+        Row(
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(icon, contentDescription = null, modifier = Modifier.size(18.dp))
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(text = label, style = MaterialTheme.typography.labelLarge)
+        }
     }
 }
 
@@ -578,10 +644,9 @@ fun FoodCategory(
     recentNames: List<String>,
     onFoodClick: (FoodItemData) -> Unit,
     onFavouriteToggle: (FoodItemData) -> Unit,
+    onMoreClick: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    // Optimization: Use derivedStateOf to automatically track state changes in allFoodItems and recentNames.
-    // This recalculates only when relevant data changes.
     val filteredCategories by remember(searchQuery, selectedCategory, allFoodItems, recentNames) {
         derivedStateOf {
             val baseList = when (selectedCategory) {
@@ -644,7 +709,7 @@ fun FoodCategory(
                     Column {
                         FoodSectionHeader(
                             title = categoryName, 
-                            onClick = { /* Action for category */ },
+                            onClick = { onMoreClick(categoryName) },
                             showInfoIcon = categoryName == "Malay",
                             onInfoClick = { isInfoExpanded = !isInfoExpanded }
                         )
@@ -708,7 +773,7 @@ fun FoodSectionHeader(
         Icon(
             Icons.AutoMirrored.Filled.KeyboardArrowRight, 
             contentDescription = "More", 
-            tint = Color(0xFFFF69B4),
+            tint = AppPink,
             modifier = Modifier.size(24.dp)
         )
         if (showInfoIcon) {
@@ -716,7 +781,7 @@ fun FoodSectionHeader(
                 Icon(
                     Icons.Outlined.Info,
                     contentDescription = "Info",
-                    tint = Color(0xFFFF69B4),
+                    tint = AppPink,
                     modifier = Modifier.size(24.dp)
                 )
             }
@@ -725,36 +790,32 @@ fun FoodSectionHeader(
 }
 
 @Composable
-fun FoodRow(items: List<FoodItemData>, onFoodClick: (FoodItemData) -> Unit, onFavouriteToggle: (FoodItemData) -> Unit) {
-    // Horizontal row for Origin and Type categories (uses fixed width)
+fun FoodRow(
+    items: List<FoodItemData>,
+    onFoodClick: (FoodItemData) -> Unit,
+    onFavouriteToggle: (FoodItemData) -> Unit
+) {
     LazyRow(
-        contentPadding = PaddingValues(horizontal = 0.dp),
         horizontalArrangement = Arrangement.spacedBy(16.dp),
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 8.dp)
+        contentPadding = PaddingValues(vertical = 8.dp)
     ) {
-        items(items, key = { it.name }) { item ->
+        items(items) { item ->
             FoodItem(
-                item = item, 
+                item = item,
                 onClick = { onFoodClick(item) },
-                onFavouriteToggle = { onFavouriteToggle(item) },
-                modifier = Modifier.width(140.dp) // Fixed width restored for horizontal scrolling
+                onFavouriteToggle = { onFavouriteToggle(item) }
             )
         }
     }
 }
 
 @Composable
-fun FoodGridRow(items: List<FoodItemData>, onFoodClick: (FoodItemData) -> Unit, onFavouriteToggle: (FoodItemData) -> Unit) {
-    // Logic updated to arrange items as a 2-column vertical grid:
-    // 6 5
-    // 4 3
-    // 2 1
-    Column(
-        modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
-    ) {
+fun FoodGridRow(
+    items: List<FoodItemData>,
+    onFoodClick: (FoodItemData) -> Unit,
+    onFavouriteToggle: (FoodItemData) -> Unit
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
         items.chunked(2).forEach { rowItems ->
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -762,13 +823,12 @@ fun FoodGridRow(items: List<FoodItemData>, onFoodClick: (FoodItemData) -> Unit, 
             ) {
                 rowItems.forEach { item ->
                     FoodItem(
-                        item = item, 
+                        item = item,
+                        modifier = Modifier.weight(1f),
                         onClick = { onFoodClick(item) },
-                        onFavouriteToggle = { onFavouriteToggle(item) },
-                        modifier = Modifier.weight(1f)
+                        onFavouriteToggle = { onFavouriteToggle(item) }
                     )
                 }
-                // If there's only one item in the last row, add a spacer to keep alignment
                 if (rowItems.size == 1) {
                     Spacer(modifier = Modifier.weight(1f))
                 }
@@ -779,266 +839,149 @@ fun FoodGridRow(items: List<FoodItemData>, onFoodClick: (FoodItemData) -> Unit, 
 
 @Composable
 fun FoodItem(
-    item: FoodItemData, 
-    modifier: Modifier = Modifier, 
-    onClick: () -> Unit = {},
-    onFavouriteToggle: () -> Unit = {}
+    item: FoodItemData,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit,
+    onFavouriteToggle: () -> Unit
 ) {
     Card(
-        onClick = onClick,
-        colors = CardDefaults.cardColors(containerColor = Color.Transparent),
-        shape = RoundedCornerShape(16.dp),
         modifier = modifier
+            .width(160.dp)
+            .clickable(onClick = onClick),
+        shape = RoundedCornerShape(16.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant
+        )
     ) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-            modifier = Modifier.padding(4.dp)
-        ) {
+        Column {
             Box {
                 Image(
-                    painter = painterResource(item.imageRes),
+                    painter = painterResource(id = item.imageRes),
                     contentDescription = item.name,
-                    contentScale = ContentScale.Crop,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(140.dp)
-                        .clip(RoundedCornerShape(16.dp))
+                        .height(120.dp),
+                    contentScale = ContentScale.Crop
                 )
-                
-                // Optimized toggleable heart icon with backdrop
-                Surface(
-                    shape = CircleShape,
-                    color = MaterialTheme.colorScheme.surface.copy(alpha = 0.6f),
+                IconButton(
+                    onClick = onFavouriteToggle,
                     modifier = Modifier
-                        .padding(8.dp)
-                        .size(32.dp)
                         .align(Alignment.TopEnd)
-                        .clickable { onFavouriteToggle() }
+                        .padding(4.dp)
+                        .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.7f), CircleShape)
+                        .size(32.dp)
                 ) {
                     Icon(
-                        imageVector = if (item.isFavourite) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
+                        imageVector = if (item.isFavourite) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
                         contentDescription = "Favourite",
-                        tint = if (item.isFavourite) Color(0xFFFF69B4) else MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier
-                            .padding(6.dp)
-                            .fillMaxSize()
+                        tint = if (item.isFavourite) Color.Red else MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(20.dp)
                     )
                 }
             }
-            Text(
-                text = item.name,
-                style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium),
-                color = MaterialTheme.colorScheme.onSurface,
-                textAlign = TextAlign.Center,
-                maxLines = 1,
-                modifier = Modifier.fillMaxWidth()
+            Column(modifier = Modifier.padding(12.dp)) {
+                Text(
+                    text = item.name,
+                    style = MaterialTheme.typography.titleMedium,
+                    maxLines = 1
+                )
+                Text(
+                    text = item.origin,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun NavBar(navController: NavController, modifier: Modifier = Modifier) {
+    val navBackStackEntry by navController.currentBackStackEntryAsState()
+    val currentRoute = navBackStackEntry?.destination?.route
+
+    Surface(
+        color = MaterialTheme.colorScheme.surface,
+        contentColor = MaterialTheme.colorScheme.onSurface,
+        modifier = modifier
+            .fillMaxWidth()
+            .height(80.dp),
+        shadowElevation = 8.dp
+    ) {
+        Row(
+            modifier = Modifier.fillMaxSize(),
+            horizontalArrangement = Arrangement.SpaceAround,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            NavItem(
+                icon = Icons.Filled.RestaurantMenu, 
+                label = "Recipe", 
+                selected = currentRoute == "Home",
+                onClick = {
+                    navController.navigate("Home") {
+                        popUpTo("Home") { inclusive = true }
+                    }
+                }
+            )
+            NavItem(
+                icon = Icons.Filled.ShoppingCart, 
+                label = "Shopping", 
+                selected = currentRoute == "Shopping",
+                onClick = { navController.navigate("Shopping") }
+            )
+            NavItem(
+                icon = Icons.Filled.EventNote,
+                label = "Planner", 
+                selected = currentRoute == "Planner",
+                onClick = { navController.navigate("Planner") }
+            )
+            NavItem(
+                icon = Icons.Filled.Groups, 
+                label = "Community", 
+                selected = currentRoute == "Community",
+                onClick = { navController.navigate("Community") }
             )
         }
     }
 }
 
 @Composable
-fun NavBar(
-    modifier: Modifier = Modifier
+fun NavItem(
+    icon: ImageVector, 
+    label: String, 
+    selected: Boolean, 
+    onClick: () -> Unit
 ) {
-    var selectedItem by remember { mutableIntStateOf(0) }
-    val items = listOf("Recipe", "Shopping", "Planner", "Community")
-    val icons = listOf(Icons.AutoMirrored.Filled.MenuBook, Icons.Filled.ShoppingCart, Icons.Filled.CalendarMonth, Icons.Filled.Groups)
-    val pinkColor = Color(0xFFFF69B4)
-
-    Surface(
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(horizontal = 8.dp, vertical = 4.dp),
-        color = Color.Transparent
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center,
+        modifier = Modifier
+            .clip(RoundedCornerShape(12.dp))
+            .clickable(onClick = onClick)
+            .padding(8.dp)
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .background(MaterialTheme.colorScheme.surfaceContainerHighest, RoundedCornerShape(24.dp))
-                .padding(4.dp),
-            horizontalArrangement = Arrangement.SpaceAround,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            items.forEachIndexed { index, item ->
-                val isSelected = selectedItem == index
-                Box(
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(80.dp)
-                        .padding(4.dp)
-                        .clip(RoundedCornerShape(20.dp))
-                        .background(if (isSelected) pinkColor else Color.Transparent)
-                        .clickable { selectedItem = index },
-                    contentAlignment = Alignment.Center
-                ) {
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.Center
-                    ) {
-                        Icon(
-                            icons[index],
-                            contentDescription = item,
-                            tint = if (isSelected) Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.size(28.dp)
-                        )
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Text(
-                            item,
-                            style = MaterialTheme.typography.labelSmall.copy(fontSize = 12.sp),
-                            color = if (isSelected) Color.White else MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                }
-            }
-        }
+        Icon(
+            imageVector = icon,
+            contentDescription = label,
+            tint = if (selected) AppPink else MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.size(28.dp)
+        )
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelSmall,
+            color = if (selected) AppPink else MaterialTheme.colorScheme.onSurfaceVariant
+        )
     }
 }
 
 @Preview(showBackground = true)
 @Composable
 fun FoodAppPreview() {
-    A212062_Rimaniza_Lab1Theme {
-        var searchQuery by remember { mutableStateOf("") }
-        var isSearchActive by remember { mutableStateOf(false) }
-        var selectedCategory by remember { mutableStateOf("Origin") }
-        val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
-        val scope = rememberCoroutineScope()
-        var selectedDrawerItem by remember { mutableStateOf("Home") }
-
-        ModalNavigationDrawer(
-            drawerState = drawerState,
-            gesturesEnabled = true, // Enable gestures for preview to avoid accidental opening
-            drawerContent = {
-                // If the drawer is closed, we don't render anything here to keep the preview clean
-                if (drawerState.isOpen) {
-                    ModalDrawerSheet(
-                        drawerState = drawerState,
-                        drawerContainerColor = Color(0xFF242424),
-                        drawerContentColor = Color.White
-                    ) {
-                        Spacer(Modifier.height(48.dp))
-                        NavigationDrawerItem(
-                            icon = { Icon(Icons.Filled.Home, contentDescription = null) },
-                            label = { Text("Home") },
-                            selected = selectedDrawerItem == "Home",
-                            onClick = { selectedDrawerItem = "Home" },
-                            colors = NavigationDrawerItemDefaults.colors(
-                                selectedContainerColor = Color(0xFFFF69B4),
-                                selectedIconColor = Color(0xFF242424),
-                                selectedTextColor = Color(0xFF242424),
-                                unselectedContainerColor = Color.Transparent,
-                                unselectedIconColor = Color(0xFFFF69B4),
-                                unselectedTextColor = Color.White
-                            )
-                        )
-                        NavigationDrawerItem(
-                            icon = { Icon(Icons.Filled.Person, contentDescription = null) },
-                            label = { Text("Profile") },
-                            selected = selectedDrawerItem == "Profile",
-                            onClick = { selectedDrawerItem = "Profile" },
-                            colors = NavigationDrawerItemDefaults.colors(
-                                selectedContainerColor = Color(0xFFFF69B4),
-                                selectedIconColor = Color(0xFF242424),
-                                selectedTextColor = Color(0xFF242424),
-                                unselectedContainerColor = Color.Transparent,
-                                unselectedIconColor = Color(0xFFFF69B4),
-                                unselectedTextColor = Color.White
-                            )
-                        )
-                        NavigationDrawerItem(
-                            icon = { Icon(Icons.Filled.Settings, contentDescription = null) },
-                            label = { Text("Settings") },
-                            selected = selectedDrawerItem == "Settings",
-                            onClick = { selectedDrawerItem = "Settings" },
-                            colors = NavigationDrawerItemDefaults.colors(
-                                selectedContainerColor = Color(0xFFFF69B4),
-                                selectedIconColor = Color(0xFF242424),
-                                selectedTextColor = Color(0xFF242424),
-                                unselectedContainerColor = Color.Transparent,
-                                unselectedIconColor = Color(0xFFFF69B4),
-                                unselectedTextColor = Color.White
-                            )
-                        )
-                    }
-                }
-            }
-        ) {
-            Surface(color = Color.Black) {
-                val scrollState = rememberScrollState()
-                val showButton by remember {
-                    derivedStateOf {
-                        scrollState.value > 500
-                    }
-                }
-
-                Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(8.dp)
-                ) {
-                    Spacer(modifier = Modifier.size(24.dp)) // Consistent with main app
-                    TopBar(
-                        query = searchQuery,
-                        onQueryChange = { searchQuery = it },
-                        isSearchActive = isSearchActive,
-                        onSearchToggle = { isSearchActive = it },
-                        onMenuClick = { scope.launch { drawerState.open() } }
-                    )
-                    Spacer(modifier = Modifier.height(16.dp))
-
-                    Box(modifier = Modifier.weight(1f)) {
-                        Column(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .verticalScroll(scrollState),
-                            verticalArrangement = Arrangement.spacedBy(16.dp)
-                        ) {
-                            Category(
-                                selectedCategory = selectedCategory,
-                                onCategoryClick = { selectedCategory = it }
-                            )
-                            FoodCategory(
-                                searchQuery = searchQuery,
-                                selectedCategory = selectedCategory,
-                                allFoodItems = emptyList(),
-                                recentNames = emptyList(),
-                                onFoodClick = {},
-                                onFavouriteToggle = {}
-                            )
-                        }
-
-                        // Scroll to Top Button
-                        androidx.compose.animation.AnimatedVisibility(
-                            visible = showButton,
-                            enter = fadeIn(),
-                            exit = fadeOut(),
-                            modifier = Modifier
-                                .align(Alignment.BottomEnd)
-                                .padding(16.dp)
-                        ) {
-                            FloatingActionButton(
-                                onClick = {
-                                    scope.launch {
-                                        scrollState.animateScrollTo(0)
-                                    }
-                                },
-                                containerColor = Color(0xFFFF69B4),
-                                contentColor = Color(0xFF242424),
-                                shape = CircleShape,
-                                modifier = Modifier.size(56.dp)
-                            ) {
-                                Icon(
-                                    Icons.Filled.ArrowUpward,
-                                    contentDescription = "Scroll to top"
-                                )
-                            }
-                        }
-                    }
-                    NavBar(modifier = Modifier.padding(top = 8.dp))
-                }
-            }
+    A212062_Rimaniza_Lab1Theme(darkTheme = true) {
+        // Simple preview with hardcoded values
+        Column(modifier = Modifier.fillMaxSize()) {
+            Text("Preview requires active NavController", modifier = Modifier.padding(16.dp))
         }
     }
 }
