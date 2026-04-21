@@ -113,7 +113,7 @@ class MainActivity : ComponentActivity() {
                             )
 
                             NavigationDrawerItem(
-                                icon = { Icon(Icons.Filled.Home, contentDescription = null) },
+                                icon = { Icon(Icons.Filled.Home, contentDescription = "Home Screen") },
                                 label = { Text("Home") },
                                 selected = currentRoute == "Home",
                                 onClick = {
@@ -131,7 +131,7 @@ class MainActivity : ComponentActivity() {
                                     unselectedTextColor = MaterialTheme.colorScheme.onSurface
                                 )
                             )
-                            NavigationDrawerItem(
+                            /*NavigationDrawerItem(
                                 icon = { Icon(Icons.Filled.Dashboard, contentDescription = null) },
                                 label = { Text("Community") },
                                 selected = currentRoute == "Community",
@@ -147,9 +147,9 @@ class MainActivity : ComponentActivity() {
                                     unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
                                     unselectedTextColor = MaterialTheme.colorScheme.onSurface
                                 )
-                            )
+                            )*/
                             NavigationDrawerItem(
-                                icon = { Icon(Icons.Filled.Person, contentDescription = null) },
+                                icon = { Icon(Icons.Filled.Person, contentDescription = "Profile Screen") },
                                 label = { Text("Profile") },
                                 selected = currentRoute == "Profile",
                                 onClick = {
@@ -166,7 +166,7 @@ class MainActivity : ComponentActivity() {
                                 )
                             )
                             NavigationDrawerItem(
-                                icon = { Icon(Icons.Filled.Settings, contentDescription = null) },
+                                icon = { Icon(Icons.Filled.Settings, contentDescription = "Settings Screen") },
                                 label = { Text("Settings") },
                                 selected = currentRoute == "Settings",
                                 onClick = {
