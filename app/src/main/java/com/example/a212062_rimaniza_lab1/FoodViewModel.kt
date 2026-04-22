@@ -229,12 +229,25 @@ class FoodViewModel : ViewModel() {
 
     fun addIngredientsToShoppingList(food: FoodItemData) {
         food.sections.forEach { section ->
-            section.ingredients.forEach { ingredient ->
-                shoppingItems.add(
+            section.ingredients.forEach { rawIngredient ->
+                val trimmed = rawIngredient.trim()
+                val parts = trimmed.split(" ")
+                
+                val (amt, ing) = when {
+                    parts.size == 1 -> "" to trimmed
+                    else -> {
+                        // The last word is the ingredient, everything before it is the amount
+                        val amountPart = parts.dropLast(1).joinToString(" ")
+                        val ingredientPart = parts.last()
+                        amountPart to ingredientPart
+                    }
+                }
+
+                addShoppingItem(
                     ShoppingItem(
                         foodName = food.name,
-                        ingredient = ingredient,
-                        amount = ""
+                        ingredient = ing,
+                        amount = amt
                     )
                 )
             }
@@ -307,14 +320,88 @@ class FoodViewModel : ViewModel() {
     }
 
     // Shopping List Actions
-    fun addShoppingItem(item: ShoppingItem) {
-        shoppingItems.add(item)
+    private fun mergeAmounts(amount1: String, amount2: String): String {
+        if (amount1.isBlank()) return amount2
+        if (amount2.isBlank()) return amount1
+
+        // Regex to match a number and everything else as the unit
+        val regex = """^(\d+\.?\d*)\s*(.*)$""".toRegex()
+        val match1 = regex.find(amount1.trim())
+        val match2 = regex.find(amount2.trim())
+
+        if (match1 != null && match2 != null) {
+            val val1 = match1.groupValues[1].toDoubleOrNull() ?: 0.0
+            val unit1 = match1.groupValues[2].trim()
+            val val2 = match2.groupValues[1].toDoubleOrNull() ?: 0.0
+            val unit2 = match2.groupValues[2].trim()
+
+            // Normalize units by lowercasing and removing plural suffixes for comparison
+            fun normalize(u: String) = u.lowercase().removeSuffix("es").removeSuffix("s")
+
+            if (normalize(unit1) == normalize(unit2)) {
+                val total = val1 + val2
+                val displayTotal = if (total % 1.0 == 0.0) total.toInt().toString() else total.toString()
+                
+                // Pick the more appropriate unit name (plural if total > 1)
+                val finalUnit = if (total > 1) {
+                    if (unit1.length > unit2.length) unit1 else unit2
+                } else {
+                    if (unit1.length < unit2.length) unit1 else unit2
+                }
+                
+                // Keep the formatting (space vs no space) based on inputs
+                val hasSpace = amount1.trim().contains(" ") || amount2.trim().contains(" ")
+                return if (hasSpace) "$displayTotal $finalUnit" else "$displayTotal$finalUnit"
+            }
+        }
+        
+        // Fallback: if they don't match, join them
+        return if (amount1.contains(amount2)) amount1 else "$amount1, $amount2"
+    }
+
+    fun addShoppingItem(newItem: ShoppingItem) {
+        val trimmedIngredient = newItem.ingredient.trim()
+        val trimmedFoodName = newItem.foodName?.trim()?.takeIf { it.isNotBlank() } ?: "Ungrouped"
+        
+        // Merge only if both ingredient name AND food name match
+        val existingIndex = shoppingItems.indexOfFirst { 
+            it.ingredient.trim().equals(trimmedIngredient, ignoreCase = true) &&
+            (it.foodName?.trim() ?: "Ungrouped").equals(trimmedFoodName, ignoreCase = true)
+        }
+
+        if (existingIndex != -1) {
+            val existingItem = shoppingItems[existingIndex]
+            shoppingItems[existingIndex] = existingItem.copy(
+                amount = mergeAmounts(existingItem.amount, newItem.amount),
+                isChecked = false
+            )
+        } else {
+            shoppingItems.add(newItem.copy(
+                ingredient = trimmedIngredient,
+                foodName = trimmedFoodName
+            ))
+        }
+    }
+
+    fun toggleIngredientGroup(ingredientName: String, isChecked: Boolean) {
+        shoppingItems.indices.forEach { i ->
+            if (shoppingItems[i].ingredient.equals(ingredientName, ignoreCase = true)) {
+                shoppingItems[i] = shoppingItems[i].copy(isChecked = isChecked)
+            }
+        }
+    }
+
+    fun deleteIngredientGroup(ingredientName: String) {
+        shoppingItems.removeAll { it.ingredient.equals(ingredientName, ignoreCase = true) }
     }
 
     fun updateShoppingItem(item: ShoppingItem) {
         val index = shoppingItems.indexOfFirst { it.id == item.id }
         if (index != -1) {
-            shoppingItems[index] = item
+            shoppingItems[index] = item.copy(
+                ingredient = item.ingredient.trim(),
+                foodName = item.foodName?.trim()?.takeIf { it.isNotBlank() }
+            )
         }
     }
 

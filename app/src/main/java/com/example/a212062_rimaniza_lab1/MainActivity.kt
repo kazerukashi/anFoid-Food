@@ -84,7 +84,6 @@ class MainActivity : ComponentActivity() {
                 val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
                 val scope = rememberCoroutineScope()
 
-
                 val hideNavBarRoutes = listOf("Profile", "Settings")
                 val isNavBarVisible = currentRoute !in hideNavBarRoutes && currentRoute?.startsWith("Detail") == false
 
@@ -98,7 +97,6 @@ class MainActivity : ComponentActivity() {
                         ) {
                             Spacer(Modifier.height(48.dp))
                             
-                            // Side Menu Logo - Larger size as requested
                             Text(
                                 text = "anFoid Food",
                                 color = AppPink,

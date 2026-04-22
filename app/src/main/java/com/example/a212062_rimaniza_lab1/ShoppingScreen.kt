@@ -11,6 +11,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.ExpandLess
+import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.material.icons.filled.Flatware
@@ -41,6 +43,8 @@ fun ShoppingScreen(
     var itemToEdit by remember { mutableStateOf<ShoppingItem?>(null) }
     var itemToDelete by remember { mutableStateOf<ShoppingItem?>(null) }
     var ingredientToDelete by remember { mutableStateOf<String?>(null) }
+
+    var expandedGroups by remember { mutableStateOf(setOf<String>()) }
 
     Column(modifier = Modifier.fillMaxSize()) {
         Spacer(modifier = Modifier.height(24.dp))
@@ -116,7 +120,6 @@ fun ShoppingScreen(
                                     onCheckedChange(ingredient, checked)
                                 },
                                 onEdit = {
-                                    // Edit the first occurrence or handle group edit
                                     itemToEdit = items.first()
                                 },
                                 onDelete = {
@@ -125,33 +128,65 @@ fun ShoppingScreen(
                             )
                         }
                     } else {
-                        val itemsByFood = shoppingItems.groupBy { it.foodName ?: "Added Manually" }
-                        itemsByFood.forEach { (foodName, items) ->
-                            item {
-                                Text(
-                                    text = foodName,
-                                    style = MaterialTheme.typography.titleMedium,
-                                    color = AppPink,
-                                    fontWeight = FontWeight.Bold,
-                                    modifier = Modifier.padding(top = 8.dp)
-                                )
+                        // Group items, treating null/blank foodName as "Ungrouped"
+                        val itemsByFood = shoppingItems.groupBy { it.foodName?.takeIf { name -> name.isNotBlank() } ?: "Ungrouped" }
+                        
+                        // Sort so "Ungrouped" is at the top
+                        val sortedFoodNames = itemsByFood.keys.sortedWith { a, b ->
+                            when {
+                                a == "Ungrouped" -> -1
+                                b == "Ungrouped" -> 1
+                                else -> a.compareTo(b)
                             }
-                            items(items) { item ->
-                                ShoppingListItem(
-                                    ingredient = item.ingredient,
-                                    amount = item.amount,
-                                    foodName = null,
-                                    isChecked = item.isChecked,
-                                    onCheckedChange = { checked ->
-                                        onItemCheckedChange(item.id, checked)
-                                    },
-                                    onEdit = {
-                                        itemToEdit = item
-                                    },
-                                    onDelete = {
-                                        itemToDelete = item
-                                    }
-                                )
+                        }
+
+                        sortedFoodNames.forEach { foodName ->
+                            val items = itemsByFood[foodName] ?: emptyList()
+                            val isExpanded = expandedGroups.contains(foodName)
+                            
+                            item {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clickable { 
+                                            expandedGroups = if (isExpanded) expandedGroups - foodName else expandedGroups + foodName
+                                        }
+                                        .padding(vertical = 8.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        text = foodName,
+                                        style = MaterialTheme.typography.titleMedium,
+                                        color = AppPink,
+                                        fontWeight = FontWeight.Bold,
+                                        modifier = Modifier.weight(1f)
+                                    )
+                                    Icon(
+                                        imageVector = if (isExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                                        contentDescription = if (isExpanded) "Collapse" else "Expand",
+                                        tint = AppPink
+                                    )
+                                }
+                            }
+                            
+                            if (isExpanded) {
+                                items(items) { item ->
+                                    ShoppingListItem(
+                                        ingredient = item.ingredient,
+                                        amount = item.amount,
+                                        foodName = null,
+                                        isChecked = item.isChecked,
+                                        onCheckedChange = { checked ->
+                                            onItemCheckedChange(item.id, checked)
+                                        },
+                                        onEdit = {
+                                            itemToEdit = item
+                                        },
+                                        onDelete = {
+                                            itemToDelete = item
+                                        }
+                                    )
+                                }
                             }
                         }
                     }
@@ -173,6 +208,7 @@ fun ShoppingScreen(
     }
 
     if (showAddDialog || itemToEdit != null) {
+        var foodName by remember { mutableStateOf(itemToEdit?.foodName ?: "") }
         var ingredient by remember { mutableStateOf(itemToEdit?.ingredient ?: "") }
         var amount by remember { mutableStateOf(itemToEdit?.amount ?: "") }
 
@@ -184,6 +220,12 @@ fun ShoppingScreen(
             title = { Text(if (itemToEdit == null) "Add Item" else "Edit Item") },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedTextField(
+                        value = foodName,
+                        onValueChange = { foodName = it },
+                        label = { Text("Food Name (Optional)") },
+                        modifier = Modifier.fillMaxWidth()
+                    )
                     OutlinedTextField(
                         value = ingredient,
                         onValueChange = { ingredient = it },
@@ -204,12 +246,13 @@ fun ShoppingScreen(
                         if (ingredient.isNotBlank()) {
                             if (itemToEdit != null) {
                                 onUpdateItem(itemToEdit!!.copy(
+                                    foodName = foodName,
                                     ingredient = ingredient,
                                     amount = amount
                                 ))
                             } else {
                                 onAddItem(ShoppingItem(
-                                    foodName = null,
+                                    foodName = foodName,
                                     ingredient = ingredient,
                                     amount = amount
                                 ))
