@@ -66,7 +66,7 @@ fun SettingsScreen(
                 text = "Settings",
                 style = MaterialTheme.typography.titleLarge.copy(
                     fontWeight = FontWeight.Bold,
-                    fontSize = 22.sp
+                    fontSize = 24.sp
                 ),
                 color = AppPink
             )

@@ -39,14 +39,17 @@ fun PlannerScreen(
     Column(modifier = Modifier.fillMaxSize()) {
         Spacer(modifier = Modifier.height(24.dp))
         
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
+        Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(56.dp)
-                .padding(horizontal = 8.dp)
+                .padding(horizontal = 8.dp),
+            contentAlignment = Alignment.Center
         ) {
-            IconButton(onClick = onMenuClick) {
+            IconButton(
+                onClick = onMenuClick,
+                modifier = Modifier.align(Alignment.CenterStart)
+            ) {
                 Icon(Icons.Default.Menu, contentDescription = "Menu", tint = AppPink)
             }
             Text(
@@ -55,8 +58,7 @@ fun PlannerScreen(
                     fontWeight = FontWeight.Bold,
                     fontSize = 24.sp
                 ),
-                color = AppPink,
-                modifier = Modifier.padding(start = 8.dp)
+                color = AppPink
             )
         }
 

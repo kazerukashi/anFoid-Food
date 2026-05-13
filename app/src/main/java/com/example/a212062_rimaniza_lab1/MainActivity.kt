@@ -368,7 +368,8 @@ class MainActivity : ComponentActivity() {
                                         },
                                         onFavouriteToggle = { toggledItem ->
                                             viewModel.toggleFavourite(toggledItem.id)
-                                        }
+                                        },
+                                        maxRecentItems = viewModel.maxRecentItems
                                     )
                                 }
                                 composable("FoodDetail/{foodId}") { backStackEntry ->
@@ -436,7 +437,22 @@ fun HomeScreen(
             onSearchToggle = onSearchToggle,
             onMenuClick = onMenuClick
         )
-        Spacer(modifier = Modifier.height(16.dp))
+        
+        if (selectedCategory.equals("Recent", ignoreCase = true) && !isSearchActive) {
+            Text(
+                text = "Number of Recents Saved: $maxRecentItems",
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 8.dp),
+                textAlign = TextAlign.Center,
+                style = MaterialTheme.typography.titleMedium.copy(
+                    fontWeight = FontWeight.Bold
+                ),
+                color = AppPink
+            )
+        } else {
+            Spacer(modifier = Modifier.height(16.dp))
+        }
 
         Box(modifier = Modifier.weight(1f)) {
             LazyColumn(
@@ -514,67 +530,73 @@ fun TopBar(
     onMenuClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
+    Box(
         modifier = modifier
             .fillMaxWidth()
-            .height(56.dp)
+            .height(56.dp),
+        contentAlignment = Alignment.Center
     ) {
-        IconButton(onClick = onMenuClick) {
-            Icon(Icons.Filled.Menu, contentDescription = "Menu", tint = AppPink)
-        }
-        
-            Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.CenterStart) {
-                if (!isSearchActive) {
-                    Text(
-                        text = "anFoid Food",
-                        style = MaterialTheme.typography.titleLarge.copy(
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 24.sp
+        if (!isSearchActive) {
+            IconButton(
+                onClick = onMenuClick,
+                modifier = Modifier.align(Alignment.CenterStart)
+            ) {
+                Icon(Icons.Filled.Menu, contentDescription = "Menu", tint = AppPink)
+            }
+            
+            Text(
+                text = "anFoid Food",
+                style = MaterialTheme.typography.titleLarge.copy(
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 24.sp
+                ),
+                color = AppPink
+            )
+        } else {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(start = 8.dp, end = 48.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                AnimatedVisibility(
+                    visible = isSearchActive,
+                    enter = expandHorizontally(),
+                    exit = shrinkHorizontally()
+                ) {
+                    TextField(
+                        value = query,
+                        onValueChange = onQueryChange,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(50.dp),
+                        placeholder = { Text("Search recipes...", fontSize = 14.sp) },
+                        singleLine = true,
+                        colors = TextFieldDefaults.colors(
+                            focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                            unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                            focusedIndicatorColor = Color.Transparent,
+                            unfocusedIndicatorColor = Color.Transparent
                         ),
-                        color = AppPink,
-                        modifier = Modifier.padding(start = 8.dp)
-                    )
-                }
-                
-                Row(modifier = Modifier.fillMaxWidth()) {
-                    AnimatedVisibility(
-                        visible = isSearchActive,
-                        enter = expandHorizontally(),
-                        exit = shrinkHorizontally()
-                    ) {
-                        TextField(
-                            value = query,
-                            onValueChange = onQueryChange,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 8.dp)
-                                .height(50.dp),
-                            placeholder = { Text("Search recipes...", fontSize = 14.sp) },
-                            singleLine = true,
-                            colors = TextFieldDefaults.colors(
-                                focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
-                                unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
-                                focusedIndicatorColor = Color.Transparent,
-                                unfocusedIndicatorColor = Color.Transparent
-                            ),
-                            shape = RoundedCornerShape(25.dp),
-                            leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null, tint = AppPink) },
-                            trailingIcon = {
-                                if (query.isNotEmpty()) {
-                                    IconButton(onClick = { onQueryChange("") }) {
-                                        Icon(Icons.Filled.Close, contentDescription = "Clear", tint = AppPink)
-                                    }
+                        shape = RoundedCornerShape(25.dp),
+                        trailingIcon = {
+                            if (query.isNotEmpty()) {
+                                IconButton(onClick = { onQueryChange("") }) {
+                                    Icon(Icons.Filled.Close, contentDescription = "Clear", tint = AppPink)
                                 }
                             }
-                        )
-                    }
+                        }
+                    )
                 }
             }
+        }
 
-        IconButton(onClick = { onSearchToggle(!isSearchActive) }) {
+        IconButton(
+            onClick = { onSearchToggle(!isSearchActive) },
+            modifier = Modifier.align(Alignment.CenterEnd)
+        ) {
             Icon(
-                if (isSearchActive) Icons.Filled.Close else Icons.Filled.Search,
+                if (isSearchActive) Icons.Filled.KeyboardArrowLeft else Icons.Filled.Search,
                 contentDescription = "Search",
                 tint = AppPink
             )
@@ -645,7 +667,7 @@ fun FoodCategory(
     onMoreClick: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val filteredCategories by remember(searchQuery, selectedCategory, allFoodItems, recentNames) {
+    val filteredCategories by remember(searchQuery, selectedCategory, allFoodItems.size, recentNames.size) {
         derivedStateOf {
             val baseList = when (selectedCategory) {
                 "Favourite" -> allFoodItems.filter { it.isFavourite }
@@ -653,7 +675,9 @@ fun FoodCategory(
                 else -> allFoodItems
             }
 
-            val itemsWithSearch = baseList.filter { it.name.contains(searchQuery, ignoreCase = true) }
+            val itemsWithSearch = if (searchQuery.isBlank()) baseList else {
+                baseList.filter { it.name.contains(searchQuery, ignoreCase = true) }
+            }
 
             if (selectedCategory == "Favourite" || selectedCategory == "Recent") {
                 if (itemsWithSearch.isEmpty()) emptyMap()
@@ -661,8 +685,18 @@ fun FoodCategory(
             } else {
                 val groups = mutableMapOf<String, List<FoodItemData>>()
                 if (selectedCategory == "Origin") {
+                    val originOrder = listOf("Malay", "Chinese", "Indian", "Italian")
+                    originOrder.forEach { origin ->
+                        val itemsForOrigin = itemsWithSearch.filter { it.origin == origin }
+                        if (itemsForOrigin.isNotEmpty()) {
+                            groups[origin] = itemsForOrigin
+                        }
+                    }
+                    // Handle any origins not in the explicit list
                     itemsWithSearch.forEach { item ->
-                        groups[item.origin] = (groups[item.origin] ?: emptyList()) + item
+                        if (item.origin !in originOrder && !groups.containsKey(item.origin)) {
+                            groups[item.origin] = itemsWithSearch.filter { it.origin == item.origin }
+                        }
                     }
                 } else { // "Type"
                     val typeTags = listOf("Main Course", "Appetizer", "Chicken-based", "Protein", "Carbs", "Vegan", "Halal", "Non-Halal", "Dairy", "Non-Dairy")
@@ -678,41 +712,47 @@ fun FoodCategory(
         }
     }
 
-    Column(
-        modifier = modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
-        if (filteredCategories.isEmpty()) {
-            val emptyMessage = when {
-                searchQuery.isNotEmpty() -> "No results found for \"$searchQuery\""
-                selectedCategory == "Favourite" -> "You haven't added any recipes to your favourites."
-                selectedCategory == "Recent" -> "You haven't clicked on any recipe."
-                else -> "No recipes available."
-            }
-            
-            Text(
-                text = emptyMessage,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                style = MaterialTheme.typography.bodyLarge,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 32.dp),
-                textAlign = TextAlign.Center
-            )
-        } else {
-            filteredCategories.forEach { (categoryName, items) ->
-                key(categoryName) {
-                    var isInfoExpanded by remember { mutableStateOf(false) }
+    AnimatedContent(
+        targetState = filteredCategories,
+        transitionSpec = {
+            fadeIn(animationSpec = tween(300)) togetherWith fadeOut(animationSpec = tween(300))
+        },
+        label = "CategoryTransition"
+    ) { targetCategories ->
+        Column(
+            modifier = modifier.fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            if (targetCategories.isEmpty()) {
+                val emptyMessage = when {
+                    searchQuery.isNotEmpty() -> "No results found for \"$searchQuery\""
+                    selectedCategory == "Favourite" -> "You haven't added any recipes to your favourites."
+                    selectedCategory == "Recent" -> "You haven't clicked on any recipe."
+                    else -> "No recipes available."
+                }
+                
+                Text(
+                    text = emptyMessage,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MaterialTheme.typography.bodyLarge,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 32.dp),
+                    textAlign = TextAlign.Center
+                )
+            } else {
+                targetCategories.forEach { (categoryName, items) ->
+                    key(categoryName) {
+                        var isInfoExpanded by remember { mutableStateOf(false) }
 
-                    Column {
-                        FoodSectionHeader(
-                            title = categoryName, 
-                            onClick = { onMoreClick(categoryName) },
-                            showInfoIcon = categoryName == "Malay",
-                            onInfoClick = { isInfoExpanded = !isInfoExpanded }
-                        )
-                        
-                        if (categoryName == "Malay") {
+                        Column {
+                            FoodSectionHeader(
+                                title = categoryName, 
+                                onClick = { onMoreClick(categoryName) },
+                                showInfoIcon = true,
+                                onInfoClick = { isInfoExpanded = !isInfoExpanded }
+                            )
+                            
                             AnimatedVisibility(
                                 visible = isInfoExpanded,
                                 enter = expandVertically() + fadeIn(),
@@ -728,18 +768,25 @@ fun FoodCategory(
                                     )
                                 ) {
                                     Text(
-                                        text = "Malay food originated from the Malay culture and is known for its rich flavors, featuring coconut milk, lemongrass, and a variety of aromatic spices.",
+                                        text = when(categoryName) {
+                                            "Malay" -> "Malay food originated from the Malay culture and is known for its rich flavors, featuring coconut milk, lemongrass, and a variety of aromatic spices."
+                                            "Chinese" -> "Chinese cuisine in Malaysia features diverse regional styles, emphasizing stir-frying, steaming, and a balance of flavors like soy sauce and ginger."
+                                            "Indian" -> "Indian cuisine is celebrated for its complex spice blends, curries, and breads like naan and roti, often using tandoors and clay pots."
+                                            "Appetizer" -> "Appetizers are small dishes served before the main course to stimulate the appetite, ranging from savory snacks to light salads."
+                                            "Main Course" -> "Main courses are the primary featured dishes of a meal, typically more substantial and satisfying."
+                                            else -> "Explore the unique ingredients and traditional cooking methods that make $categoryName dishes so special and delicious."
+                                        },
                                         modifier = Modifier.padding(16.dp),
                                         style = MaterialTheme.typography.bodyMedium
                                     )
                                 }
                             }
-                        }
-                        
-                        if (selectedCategory == "Favourite" || selectedCategory == "Recent") {
-                            FoodGridRow(items, onFoodClick = onFoodClick, onFavouriteToggle = onFavouriteToggle)
-                        } else {
-                            FoodRow(items, onFoodClick = onFoodClick, onFavouriteToggle = onFavouriteToggle)
+                            
+                            if (selectedCategory == "Favourite" || selectedCategory == "Recent") {
+                                FoodGridRow(items, onFoodClick = onFoodClick, onFavouriteToggle = onFavouriteToggle)
+                            } else {
+                                FoodRow(items, onFoodClick = onFoodClick, onFavouriteToggle = onFavouriteToggle)
+                            }
                         }
                     }
                 }

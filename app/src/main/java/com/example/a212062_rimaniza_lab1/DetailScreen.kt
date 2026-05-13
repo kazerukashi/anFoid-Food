@@ -22,7 +22,8 @@ fun DetailScreen(
     items: List<FoodItemData>,
     onBackClick: () -> Unit,
     onFoodClick: (FoodItemData) -> Unit,
-    onFavouriteToggle: (FoodItemData) -> Unit
+    onFavouriteToggle: (FoodItemData) -> Unit,
+    maxRecentItems: Int = 0
 ) {
     Column(
         modifier = Modifier.fillMaxSize()
@@ -53,7 +54,21 @@ fun DetailScreen(
                 text = categoryName,
                 style = MaterialTheme.typography.titleLarge.copy(
                     fontWeight = FontWeight.Bold,
-                    fontSize = 22.sp
+                    fontSize = 24.sp
+                ),
+                color = AppPink
+            )
+        }
+
+        if (categoryName.equals("Recent", ignoreCase = true) || categoryName.equals("Recently Viewed", ignoreCase = true)) {
+            Text(
+                text = "Number of Recents Saved: $maxRecentItems",
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                style = MaterialTheme.typography.titleMedium.copy(
+                    fontWeight = FontWeight.Bold
                 ),
                 color = AppPink
             )

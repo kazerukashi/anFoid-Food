@@ -44,8 +44,9 @@ fun FoodDetailScreen(
                         text = foodItem.name,
                         style = MaterialTheme.typography.titleLarge.copy(
                             fontWeight = FontWeight.Bold,
-                            color = AppPink
-                        )
+                            fontSize = 24.sp
+                        ),
+                        color = AppPink
                     )
                 },
                 navigationIcon = {

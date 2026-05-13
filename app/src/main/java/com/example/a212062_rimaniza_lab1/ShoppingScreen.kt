@@ -49,14 +49,17 @@ fun ShoppingScreen(
     Column(modifier = Modifier.fillMaxSize()) {
         Spacer(modifier = Modifier.height(24.dp))
         
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
+        Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(56.dp)
-                .padding(horizontal = 8.dp)
+                .padding(horizontal = 8.dp),
+            contentAlignment = Alignment.Center
         ) {
-            IconButton(onClick = onMenuClick) {
+            IconButton(
+                onClick = onMenuClick,
+                modifier = Modifier.align(Alignment.CenterStart)
+            ) {
                 Icon(Icons.Default.Menu, contentDescription = "Menu", tint = AppPink)
             }
             Text(
@@ -65,8 +68,7 @@ fun ShoppingScreen(
                     fontWeight = FontWeight.Bold,
                     fontSize = 24.sp
                 ),
-                color = AppPink,
-                modifier = Modifier.padding(start = 8.dp)
+                color = AppPink
             )
         }
 
@@ -343,22 +345,24 @@ fun ShoppingListItem(
                     text = ingredient,
                     style = MaterialTheme.typography.bodyLarge,
                     fontWeight = FontWeight.Bold,
-                    color = if (isChecked) MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f) else MaterialTheme.colorScheme.onSurface
+                    color = if (isChecked) MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f) else MaterialTheme.colorScheme.onSurface,
+                    softWrap = true
                 )
                 if (foodName != null) {
                     Text(
                         text = foodName,
                         style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        softWrap = true
                     )
                 }
+                Text(
+                    text = amount,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = if (isChecked) AppPink.copy(alpha = 0.6f) else AppPink,
+                    softWrap = true
+                )
             }
-            Text(
-                text = amount,
-                style = MaterialTheme.typography.bodyMedium,
-                color = if (isChecked) AppPink.copy(alpha = 0.6f) else AppPink,
-                modifier = Modifier.padding(horizontal = 8.dp)
-            )
             Row {
                 IconButton(onClick = onEdit) {
                     Icon(
