@@ -314,15 +314,26 @@ class MainActivity : ComponentActivity() {
                                         }
                                     )
                                 }
-                                composable("Planner") {
+                                composable(
+                                    route = "Planner?foodId={foodId}",
+                                    arguments = listOf(
+                                        androidx.navigation.navArgument("foodId") {
+                                            nullable = true
+                                            defaultValue = null
+                                        }
+                                    )
+                                ) { backStackEntry ->
                                     val context = LocalContext.current
+                                    val preSelectedFoodId = backStackEntry.arguments?.getString("foodId")
+                                    
                                     PlannerScreen(
                                         onMenuClick = { scope.launch { drawerState.open() } },
                                         plannerEvents = viewModel.plannerEvents,
                                         allFoodItems = viewModel.allFoodItems,
                                         onAddEvent = { viewModel.addPlannerEvent(context, it) },
                                         onUpdateEvent = { viewModel.updatePlannerEvent(context, it) },
-                                        onDeleteEvent = { viewModel.deletePlannerEvent(context, it) }
+                                        onDeleteEvent = { viewModel.deletePlannerEvent(context, it) },
+                                        preSelectedFoodId = preSelectedFoodId
                                     )
                                 }
                                 composable("Community") {
@@ -388,7 +399,7 @@ class MainActivity : ComponentActivity() {
                                                 navController.navigate("Shopping")
                                             },
                                             onAddToPlanner = {
-                                                navController.navigate("Planner")
+                                                navController.navigate("Planner?foodId=${foodItem.id}")
                                             }
                                         )
                                     }

@@ -95,7 +95,7 @@ fun FoodDetailScreen(
                         // Shopping Button
                         ActionButton(
                             icon = Icons.Default.ShoppingCart,
-                            label = "Shopping",
+                            label = "Shopping List",
                             onClick = onAddToShoppingList
                         )
                         

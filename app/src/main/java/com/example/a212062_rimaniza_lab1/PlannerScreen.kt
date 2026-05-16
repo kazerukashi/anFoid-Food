@@ -30,11 +30,17 @@ fun PlannerScreen(
     allFoodItems: List<FoodItemData>,
     onAddEvent: (PlannerEvent) -> Unit,
     onUpdateEvent: (PlannerEvent) -> Unit,
-    onDeleteEvent: (PlannerEvent) -> Unit
+    onDeleteEvent: (PlannerEvent) -> Unit,
+    preSelectedFoodId: String? = null
 ) {
-    var showAddDialog by remember { mutableStateOf(false) }
+    var showAddDialog by remember { mutableStateOf(preSelectedFoodId != null) }
     var eventToEdit by remember { mutableStateOf<PlannerEvent?>(null) }
     var eventToDelete by remember { mutableStateOf<PlannerEvent?>(null) }
+    
+    // Initial state for pre-selected food
+    val preSelectedFood = remember(preSelectedFoodId) {
+        allFoodItems.find { it.id == preSelectedFoodId }
+    }
 
     Column(modifier = Modifier.fillMaxSize()) {
         Spacer(modifier = Modifier.height(24.dp))
@@ -110,6 +116,7 @@ fun PlannerScreen(
     if (showAddDialog || eventToEdit != null) {
         PlanMealDialog(
             event = eventToEdit,
+            preSelectedFood = preSelectedFood,
             allFoodItems = allFoodItems,
             onDismiss = {
                 showAddDialog = false
@@ -156,12 +163,13 @@ fun PlannerScreen(
 @Composable
 fun PlanMealDialog(
     event: PlannerEvent?,
+    preSelectedFood: FoodItemData? = null,
     allFoodItems: List<FoodItemData>,
     onDismiss: () -> Unit,
     onConfirm: (PlannerEvent) -> Unit
 ) {
     var title by remember { mutableStateOf(event?.title ?: "") }
-    var selectedFood by remember { mutableStateOf(event?.foodItem) }
+    var selectedFood by remember { mutableStateOf(event?.foodItem ?: preSelectedFood) }
     var date by remember { mutableStateOf(event?.date ?: "Select Date") }
     var time by remember { mutableStateOf(event?.time ?: "Select Time") }
     var repeat by remember { mutableStateOf(event?.repeat ?: "Never") }
