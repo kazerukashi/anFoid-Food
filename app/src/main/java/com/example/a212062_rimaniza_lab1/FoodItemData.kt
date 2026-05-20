@@ -1,13 +1,20 @@
 package com.example.a212062_rimaniza_lab1
 
+import androidx.room.Entity
+import androidx.room.PrimaryKey
+import androidx.room.TypeConverter
+import com.google.gson.Gson
+import com.google.gson.reflect.TypeToken
+
 data class RecipeSection(
     val sectionName: String,
     val ingredients: List<String>,
     val instructions: List<String>
 )
 
+@Entity(tableName = "food_items")
 data class FoodItemData(
-    val id: String,
+    @PrimaryKey val id: String,
     val imageRes: Int,
     val name: String,
     val origin: String,
@@ -21,11 +28,9 @@ data class FoodItemData(
             val list = mutableListOf<String>()
             val allIngredients = ingredients
             
-            // Origin-based tags
             if (origin == "Malay") list.add("Halal")
             if (origin == "Italian") list.add("Dairy")
             
-            // Ingredient-based tags
             if (allIngredients.any { it.contains("Chicken", ignoreCase = true) }) list.add("Chicken-based")
             if (allIngredients.any { it.contains("Beef", ignoreCase = true) || it.contains("Pork", ignoreCase = true) || it.contains("Duck", ignoreCase = true) }) list.add("Protein")
             if (allIngredients.any { it.contains("Rice", ignoreCase = true) || it.contains("Noodles", ignoreCase = true) || it.contains("Pasta", ignoreCase = true) || it.contains("Dough", ignoreCase = true) || it.contains("Potato", ignoreCase = true) }) list.add("Carbs")
@@ -36,7 +41,6 @@ data class FoodItemData(
                 list.add("Vegan")
             }
             
-            // Generic Type categorization
             if (allIngredients.any { it.contains("Rice", ignoreCase = true) || it.contains("Noodles", ignoreCase = true) || it.contains("Pasta", ignoreCase = true) || it.contains("Beef", ignoreCase = true) || it.contains("Chicken", ignoreCase = true) }) {
                 list.add("Main Course")
             } else {
@@ -51,16 +55,18 @@ data class FoodItemData(
         }
 }
 
+@Entity(tableName = "shopping_items")
 data class ShoppingItem(
-    val id: String = java.util.UUID.randomUUID().toString(),
-    val foodName: String?, // Null if added ungrouped or generic
+    @PrimaryKey val id: String = java.util.UUID.randomUUID().toString(),
+    val foodName: String?,
     val ingredient: String,
     val amount: String,
     var isChecked: Boolean = false
 )
 
+@Entity(tableName = "planner_events")
 data class PlannerEvent(
-    val id: String = java.util.UUID.randomUUID().toString(),
+    @PrimaryKey val id: String = java.util.UUID.randomUUID().toString(),
     val title: String,
     val foodItem: FoodItemData?,
     val date: String,
@@ -70,3 +76,37 @@ data class PlannerEvent(
     val reminders: List<String> = emptyList(),
     val alarmEnabled: Boolean = false
 )
+
+@Entity(tableName = "recent_items")
+data class RecentItem(
+    @PrimaryKey val foodName: String,
+    val timestamp: Long = System.currentTimeMillis()
+)
+
+class Converters {
+    private val gson = Gson()
+
+    @TypeConverter
+    fun fromRecipeSectionList(value: List<RecipeSection>?): String = gson.toJson(value)
+
+    @TypeConverter
+    fun toRecipeSectionList(value: String): List<RecipeSection>? {
+        val type = object : TypeToken<List<RecipeSection>>() {}.type
+        return gson.fromJson(value, type)
+    }
+
+    @TypeConverter
+    fun fromFoodItemData(value: FoodItemData?): String = gson.toJson(value)
+
+    @TypeConverter
+    fun toFoodItemData(value: String): FoodItemData? = gson.fromJson(value, FoodItemData::class.java)
+
+    @TypeConverter
+    fun fromStringList(value: List<String>?): String = gson.toJson(value)
+
+    @TypeConverter
+    fun toStringList(value: String): List<String>? {
+        val type = object : TypeToken<List<String>>() {}.type
+        return gson.fromJson(value, type)
+    }
+}

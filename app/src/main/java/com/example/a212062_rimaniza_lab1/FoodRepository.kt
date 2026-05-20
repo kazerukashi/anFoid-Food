@@ -1,7 +1,69 @@
 package com.example.a212062_rimaniza_lab1
 
-object FoodRepository {
-    fun getInitialFoodItems(): List<FoodItemData> {
+import kotlinx.coroutines.flow.Flow
+
+class FoodRepository(
+    private val foodDao: FoodDao,
+    private val shoppingDao: ShoppingDao,
+    private val plannerDao: PlannerDao,
+    private val recentDao: RecentDao
+) {
+    // --- Food Items ---
+    val allFoodItems: Flow<List<FoodItemData>> = foodDao.getAllFoodItems()
+
+    suspend fun initializeFoodItems() {
+        // Only insert if empty (you might want to check this or use REPLACE)
+        foodDao.insertFoodItems(getStaticFoodItems())
+    }
+
+    suspend fun updateFoodItem(item: FoodItemData) {
+        foodDao.updateFoodItem(item)
+    }
+
+    // --- Shopping List ---
+    val shoppingItems: Flow<List<ShoppingItem>> = shoppingDao.getShoppingItems()
+
+    suspend fun addShoppingItem(item: ShoppingItem) {
+        shoppingDao.insertItem(item)
+    }
+
+    suspend fun updateShoppingItem(item: ShoppingItem) {
+        shoppingDao.updateItem(item)
+    }
+
+    suspend fun deleteShoppingItem(item: ShoppingItem) {
+        shoppingDao.deleteItem(item)
+    }
+
+    suspend fun deleteShoppingItemsByIngredient(ingredient: String) {
+        shoppingDao.deleteByIngredient(ingredient)
+    }
+
+    // --- Planner ---
+    val plannerEvents: Flow<List<PlannerEvent>> = plannerDao.getPlannerEvents()
+
+    suspend fun addPlannerEvent(event: PlannerEvent) {
+        plannerDao.insertEvent(event)
+    }
+
+    suspend fun updatePlannerEvent(event: PlannerEvent) {
+        plannerDao.updateEvent(event)
+    }
+
+    suspend fun deletePlannerEvent(event: PlannerEvent) {
+        plannerDao.deleteEvent(event)
+    }
+
+    // --- Recent Items ---
+    val recentItems: Flow<List<RecentItem>> = recentDao.getRecentItems()
+
+    suspend fun addToRecent(foodName: String, limit: Int) {
+        recentDao.insertRecent(RecentItem(foodName))
+        recentDao.trimRecent(limit)
+    }
+
+    // Helper for static data (used during first launch)
+    private fun getStaticFoodItems(): List<FoodItemData> {
         return listOf(
             FoodItemData(
                 id = "1",
@@ -180,5 +242,9 @@ object FoodRepository {
                 )
             )
         )
+    }
+
+    companion object {
+        fun getInitialFoodItems() = emptyList<FoodItemData>() // Compatibility
     }
 }
