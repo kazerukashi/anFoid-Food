@@ -6,7 +6,8 @@ class FoodRepository(
     private val foodDao: FoodDao,
     private val shoppingDao: ShoppingDao,
     private val plannerDao: PlannerDao,
-    private val recentDao: RecentDao
+    private val recentDao: RecentDao,
+    private val settingsDao: SettingsDao
 ) {
     // --- Food Items ---
     val allFoodItems: Flow<List<FoodItemData>> = foodDao.getAllFoodItems()
@@ -60,6 +61,12 @@ class FoodRepository(
     suspend fun addToRecent(foodName: String, limit: Int) {
         recentDao.insertRecent(RecentItem(foodName))
         recentDao.trimRecent(limit)
+    }
+
+    // --- Settings ---
+    suspend fun getSetting(key: String): String? = settingsDao.getSetting(key)
+    suspend fun saveSetting(key: String, value: String) {
+        settingsDao.saveSetting(AppSetting(key, value))
     }
 
     // Helper for static data (used during first launch)

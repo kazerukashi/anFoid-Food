@@ -83,6 +83,12 @@ data class RecentItem(
     val timestamp: Long = System.currentTimeMillis()
 )
 
+@Entity(tableName = "app_settings")
+data class AppSetting(
+    @PrimaryKey val key: String,
+    val value: String
+)
+
 class Converters {
     private val gson = Gson()
 

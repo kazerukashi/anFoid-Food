@@ -205,8 +205,9 @@ class MainActivity : ComponentActivity() {
                                     val target = targetState.destination.route ?: ""
                                     val initial = initialState.destination.route ?: ""
                                     val order = listOf("Home", "Shopping", "Planner", "Community", "Profile", "Settings", "Detail", "FoodDetail")
-                                    val targetIndex = order.indexOfFirst { target.split("/")[0] == it }
-                                    val initialIndex = order.indexOfFirst { initial.split("/")[0] == it }
+                                    
+                                    val targetIndex = order.indexOfFirst { target.startsWith(it) }
+                                    val initialIndex = order.indexOfFirst { initial.startsWith(it) }
                                     
                                     val direction = if (targetIndex > initialIndex) {
                                         AnimatedContentTransitionScope.SlideDirection.Left
@@ -223,8 +224,9 @@ class MainActivity : ComponentActivity() {
                                     val target = targetState.destination.route ?: ""
                                     val initial = initialState.destination.route ?: ""
                                     val order = listOf("Home", "Shopping", "Planner", "Community", "Profile", "Settings", "Detail", "FoodDetail")
-                                    val targetIndex = order.indexOfFirst { target.split("/")[0] == it }
-                                    val initialIndex = order.indexOfFirst { initial.split("/")[0] == it }
+                                    
+                                    val targetIndex = order.indexOfFirst { target.startsWith(it) }
+                                    val initialIndex = order.indexOfFirst { initial.startsWith(it) }
 
                                     val direction = if (targetIndex > initialIndex) {
                                         AnimatedContentTransitionScope.SlideDirection.Left
@@ -241,8 +243,9 @@ class MainActivity : ComponentActivity() {
                                     val target = targetState.destination.route ?: ""
                                     val initial = initialState.destination.route ?: ""
                                     val order = listOf("Home", "Shopping", "Planner", "Community", "Profile", "Settings", "Detail", "FoodDetail")
-                                    val targetIndex = order.indexOfFirst { target.split("/")[0] == it }
-                                    val initialIndex = order.indexOfFirst { initial.split("/")[0] == it }
+                                    
+                                    val targetIndex = order.indexOfFirst { target.startsWith(it) }
+                                    val initialIndex = order.indexOfFirst { initial.startsWith(it) }
 
                                     val direction = if (targetIndex > initialIndex) {
                                         AnimatedContentTransitionScope.SlideDirection.Left
@@ -259,8 +262,9 @@ class MainActivity : ComponentActivity() {
                                     val target = targetState.destination.route ?: ""
                                     val initial = initialState.destination.route ?: ""
                                     val order = listOf("Home", "Shopping", "Planner", "Community", "Profile", "Settings", "Detail", "FoodDetail")
-                                    val targetIndex = order.indexOfFirst { target.split("/")[0] == it }
-                                    val initialIndex = order.indexOfFirst { initial.split("/")[0] == it }
+                                    
+                                    val targetIndex = order.indexOfFirst { target.startsWith(it) }
+                                    val initialIndex = order.indexOfFirst { initial.startsWith(it) }
 
                                     val direction = if (targetIndex > initialIndex) {
                                         AnimatedContentTransitionScope.SlideDirection.Left
@@ -295,6 +299,9 @@ class MainActivity : ComponentActivity() {
                                         onFoodClick = { clickedItem ->
                                             viewModel.addToRecent(clickedItem)
                                             navController.navigate("FoodDetail/${clickedItem.id}")
+                                        },
+                                        onFavouriteToggle = { toggledItem ->
+                                            viewModel.toggleFavourite(toggledItem.id)
                                         }
                                     )
                                 }
@@ -351,9 +358,9 @@ class MainActivity : ComponentActivity() {
                                 composable("Settings") {
                                     SettingsScreen(
                                         isDarkTheme = viewModel.isDarkTheme,
-                                        onThemeChange = { viewModel.isDarkTheme = it },
+                                        onThemeChange = { viewModel.updateTheme(it) },
                                         maxRecentItems = viewModel.maxRecentItems,
-                                        onMaxRecentItemsChange = { viewModel.maxRecentItems = it },
+                                        onMaxRecentItemsChange = { viewModel.updateMaxRecentItems(it) },
                                         onMenuClick = { scope.launch { drawerState.open() } },
                                         onBackClick = { navController.popBackStack() }
                                     )
@@ -433,7 +440,8 @@ fun HomeScreen(
     showButton: Boolean,
     coroutineScope: CoroutineScope,
     onMoreClick: (String) -> Unit,
-    onFoodClick: (FoodItemData) -> Unit
+    onFoodClick: (FoodItemData) -> Unit,
+    onFavouriteToggle: (FoodItemData) -> Unit
 ) {
     Column(
         modifier = Modifier
@@ -486,14 +494,7 @@ fun HomeScreen(
                             allFoodItems = allFoodItems,
                             recentNames = recentNames,
                             onFoodClick = onFoodClick,
-                            onFavouriteToggle = { toggledItem ->
-                                val index = allFoodItems.indexOfFirst { it.id == toggledItem.id }
-                                if (index != -1) {
-                                    allFoodItems[index] = allFoodItems[index].copy(
-                                        isFavourite = !allFoodItems[index].isFavourite
-                                    )
-                                }
-                            },
+                            onFavouriteToggle = onFavouriteToggle,
                             onMoreClick = onMoreClick
                         )
                 }
@@ -678,7 +679,7 @@ fun FoodCategory(
     onMoreClick: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val filteredCategories by remember(searchQuery, selectedCategory, allFoodItems.size, recentNames.size) {
+    val filteredCategories by remember(searchQuery, selectedCategory) {
         derivedStateOf {
             val baseList = when (selectedCategory) {
                 "Favourite" -> allFoodItems.filter { it.isFavourite }

@@ -73,13 +73,23 @@ interface RecentDao {
     suspend fun trimRecent(limit: Int)
 }
 
-@Database(entities = [FoodItemData::class, ShoppingItem::class, PlannerEvent::class, RecentItem::class], version = 1, exportSchema = false)
+@Dao
+interface SettingsDao {
+    @Query("SELECT value FROM app_settings WHERE `key` = :key")
+    suspend fun getSetting(key: String): String?
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun saveSetting(setting: AppSetting)
+}
+
+@Database(entities = [FoodItemData::class, ShoppingItem::class, PlannerEvent::class, RecentItem::class, AppSetting::class], version = 2, exportSchema = false)
 @TypeConverters(Converters::class)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun foodDao(): FoodDao
     abstract fun shoppingDao(): ShoppingDao
     abstract fun plannerDao(): PlannerDao
     abstract fun recentDao(): RecentDao
+    abstract fun settingsDao(): SettingsDao
 
     companion object {
         @Volatile
@@ -91,7 +101,9 @@ abstract class AppDatabase : RoomDatabase() {
                     context.applicationContext,
                     AppDatabase::class.java,
                     "food_database"
-                ).build()
+                )
+                .fallbackToDestructiveMigration(true)
+                .build()
                 INSTANCE = instance
                 instance
             }

@@ -24,8 +24,26 @@ class FoodViewModel(application: Application) : AndroidViewModel(application) {
     var searchQuery by mutableStateOf("")
     var isSearchActive by mutableStateOf(false)
     var selectedCategory by mutableStateOf("Origin")
+    
+    // Persistent settings
     var maxRecentItems by mutableIntStateOf(30)
+        private set
     var isDarkTheme by mutableStateOf(true)
+        private set
+
+    fun updateTheme(dark: Boolean) {
+        isDarkTheme = dark
+        viewModelScope.launch {
+            repository.saveSetting("isDarkTheme", dark.toString())
+        }
+    }
+
+    fun updateMaxRecentItems(limit: Int) {
+        maxRecentItems = limit
+        viewModelScope.launch {
+            repository.saveSetting("maxRecentItems", limit.toString())
+        }
+    }
 
     // --- App Data (Observing Database) ---
     val allFoodItems = mutableStateListOf<FoodItemData>()
@@ -39,8 +57,19 @@ class FoodViewModel(application: Application) : AndroidViewModel(application) {
             database.foodDao(),
             database.shoppingDao(),
             database.plannerDao(),
-            database.recentDao()
+            database.recentDao(),
+            database.settingsDao()
         )
+
+        // Load Settings from Database
+        viewModelScope.launch {
+            repository.getSetting("isDarkTheme")?.let {
+                isDarkTheme = it.toBoolean()
+            }
+            repository.getSetting("maxRecentItems")?.let {
+                maxRecentItems = it.toInt()
+            }
+        }
 
         // Sync local lists with Database
         viewModelScope.launch {
