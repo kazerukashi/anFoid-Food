@@ -990,7 +990,7 @@ fun NavBar(navController: NavController, modifier: Modifier = Modifier) {
             NavItem(
                 icon = Icons.Filled.EventNote,
                 label = "Planner", 
-                selected = currentRoute == "Planner",
+                selected = currentRoute?.startsWith("Planner") == true,
                 onClick = { navController.navigate("Planner") }
             )
             NavItem(

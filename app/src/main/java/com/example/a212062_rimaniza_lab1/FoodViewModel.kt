@@ -7,12 +7,15 @@ import android.content.Context
 import android.content.Intent
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.*
@@ -20,7 +23,33 @@ import java.util.*
 class FoodViewModel(application: Application) : AndroidViewModel(application) {
     private val repository: FoodRepository
 
-    // --- UI State ---
+    init {
+        val database = AppDatabase.getDatabase(application)
+        repository = FoodRepository(
+            database.foodDao(),
+            database.shoppingDao(),
+            database.plannerDao(),
+            database.recentDao(),
+            database.settingsDao()
+        )
+
+        // Initialize database if empty
+        viewModelScope.launch {
+            repository.allFoodItems.collectLatest { items ->
+                if (items.isEmpty()) {
+                    repository.initializeFoodItems()
+                }
+            }
+        }
+
+        // Load Settings
+        viewModelScope.launch {
+            repository.getSetting("isDarkTheme")?.let { isDarkTheme = it.toBoolean() }
+            repository.getSetting("maxRecentItems")?.let { maxRecentItems = it.toInt() }
+        }
+    }
+
+    // --- UI State (Shared across screens) ---
     var searchQuery by mutableStateOf("")
     var isSearchActive by mutableStateOf(false)
     var selectedCategory by mutableStateOf("Origin")
@@ -30,6 +59,23 @@ class FoodViewModel(application: Application) : AndroidViewModel(application) {
         private set
     var isDarkTheme by mutableStateOf(true)
         private set
+
+    // --- Required Component 5: ViewModel exposing StateFlow to UI ---
+    
+    val allFoodItems: StateFlow<List<FoodItemData>> = repository.allFoodItems
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    val recentNames: StateFlow<List<String>> = repository.recentItems
+        .map { items -> items.map { it.foodName } }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    val shoppingItems: StateFlow<List<ShoppingItem>> = repository.shoppingItems
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    val plannerEvents: StateFlow<List<PlannerEvent>> = repository.plannerEvents
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    // --- Process / Business Logic (Calling Repository) ---
 
     fun updateTheme(dark: Boolean) {
         isDarkTheme = dark
@@ -44,73 +90,10 @@ class FoodViewModel(application: Application) : AndroidViewModel(application) {
             repository.saveSetting("maxRecentItems", limit.toString())
         }
     }
-
-    // --- App Data (Observing Database) ---
-    val allFoodItems = mutableStateListOf<FoodItemData>()
-    val recentNames = mutableStateListOf<String>()
-    val shoppingItems = mutableStateListOf<ShoppingItem>()
-    val plannerEvents = mutableStateListOf<PlannerEvent>()
-
-    init {
-        val database = AppDatabase.getDatabase(application)
-        repository = FoodRepository(
-            database.foodDao(),
-            database.shoppingDao(),
-            database.plannerDao(),
-            database.recentDao(),
-            database.settingsDao()
-        )
-
-        // Load Settings from Database
-        viewModelScope.launch {
-            repository.getSetting("isDarkTheme")?.let {
-                isDarkTheme = it.toBoolean()
-            }
-            repository.getSetting("maxRecentItems")?.let {
-                maxRecentItems = it.toInt()
-            }
-        }
-
-        // Sync local lists with Database
-        viewModelScope.launch {
-            repository.allFoodItems.collectLatest { items ->
-                if (items.isEmpty()) {
-                    repository.initializeFoodItems()
-                } else {
-                    allFoodItems.clear()
-                    allFoodItems.addAll(items)
-                }
-            }
-        }
-
-        viewModelScope.launch {
-            repository.recentItems.collectLatest { items ->
-                recentNames.clear()
-                recentNames.addAll(items.map { it.foodName })
-            }
-        }
-
-        viewModelScope.launch {
-            repository.shoppingItems.collectLatest { items ->
-                shoppingItems.clear()
-                shoppingItems.addAll(items)
-            }
-        }
-
-        viewModelScope.launch {
-            repository.plannerEvents.collectLatest { events ->
-                plannerEvents.clear()
-                plannerEvents.addAll(events)
-            }
-        }
-    }
-
-    // --- Business Logic / Processes (DB Operations) ---
     
     fun toggleFavourite(foodId: String) {
-        val food = allFoodItems.find { it.id == foodId }
-        food?.let {
-            viewModelScope.launch {
+        viewModelScope.launch {
+            allFoodItems.value.find { it.id == foodId }?.let {
                 repository.updateFoodItem(it.copy(isFavourite = !it.isFavourite))
             }
         }
@@ -157,7 +140,7 @@ class FoodViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun updatePlannerEvent(context: Context, event: PlannerEvent) {
-        val existing = plannerEvents.find { it.id == event.id }
+        val existing = plannerEvents.value.find { it.id == event.id }
         viewModelScope.launch {
             existing?.let { cancelNotification(context, it) }
             repository.updatePlannerEvent(event)
@@ -172,7 +155,7 @@ class FoodViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    // Notification helpers (same as before)
+    // Notification helpers
     private fun scheduleNotification(context: Context, event: PlannerEvent) {
         val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
         val intent = Intent(context, AlarmReceiver::class.java).apply {
@@ -211,7 +194,7 @@ class FoodViewModel(application: Application) : AndroidViewModel(application) {
         val trimmedIngredient = newItem.ingredient.trim()
         val trimmedFoodName = newItem.foodName?.trim()?.takeIf { it.isNotBlank() } ?: "Ungrouped"
         
-        val existing = shoppingItems.find { 
+        val existing = shoppingItems.value.find { 
             it.ingredient.trim().equals(trimmedIngredient, ignoreCase = true) &&
             (it.foodName?.trim() ?: "Ungrouped").equals(trimmedFoodName, ignoreCase = true)
         }
@@ -265,13 +248,13 @@ class FoodViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun toggleShoppingItemChecked(ingredient: String, isChecked: Boolean) {
-        shoppingItems.filter { it.ingredient == ingredient }.forEach { item ->
+        shoppingItems.value.filter { it.ingredient == ingredient }.forEach { item ->
             viewModelScope.launch { repository.updateShoppingItem(item.copy(isChecked = isChecked)) }
         }
     }
 
     fun toggleShoppingItemCheckedById(id: String, isChecked: Boolean) {
-        shoppingItems.find { it.id == id }?.let { item ->
+        shoppingItems.value.find { it.id == id }?.let { item ->
             viewModelScope.launch { repository.updateShoppingItem(item.copy(isChecked = isChecked)) }
         }
     }
