@@ -1,4 +1,4 @@
-package com.example.a212062_rimaniza_lab1
+package com.example.a212062_rimaniza_project2
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
@@ -18,7 +18,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.a212062_rimaniza_lab1.ui.theme.AppPink
+import com.example.a212062_rimaniza_project2.ui.theme.AppPink
 
 @Composable
 fun ProfileScreen(

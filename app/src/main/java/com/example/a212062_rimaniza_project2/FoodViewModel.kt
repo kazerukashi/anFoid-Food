@@ -1,4 +1,4 @@
-package com.example.a212062_rimaniza_lab1
+package com.example.a212062_rimaniza_project2
 
 import android.app.AlarmManager
 import android.app.Application
@@ -159,7 +159,7 @@ class FoodViewModel(application: Application) : AndroidViewModel(application) {
     private fun scheduleNotification(context: Context, event: PlannerEvent) {
         val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
         val intent = Intent(context, AlarmReceiver::class.java).apply {
-            action = "com.example.a212062_rimaniza_lab1.ALARM_ACTION"
+            action = "com.example.a212062_rimaniza_project2.ALARM_ACTION"
             putExtra("EXTRA_TITLE", "Meal Reminder: ${event.title}")
             putExtra("EXTRA_MESSAGE", "Time for your scheduled ${event.title}!")
             putExtra("EXTRA_ID", event.id.hashCode())
@@ -180,7 +180,7 @@ class FoodViewModel(application: Application) : AndroidViewModel(application) {
     private fun cancelNotification(context: Context, event: PlannerEvent) {
         val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
         val intent = Intent(context, AlarmReceiver::class.java).apply {
-            action = "com.example.a212062_rimaniza_lab1.ALARM_ACTION"
+            action = "com.example.a212062_rimaniza_project2.ALARM_ACTION"
         }
         val pendingIntent = PendingIntent.getBroadcast(
             context, event.id.hashCode(), intent,

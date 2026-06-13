@@ -1,4 +1,4 @@
-package com.example.a212062_rimaniza_lab1
+package com.example.a212062_rimaniza_project2
 
 import android.Manifest
 import android.content.pm.PackageManager
@@ -23,13 +23,13 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.EventNote
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -49,22 +49,30 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
-import com.example.a212062_rimaniza_lab1.ui.theme.A212062_Rimaniza_Lab1Theme
-import com.example.a212062_rimaniza_lab1.ui.theme.AppPink
+import com.example.a212062_rimaniza_project2.ui.theme.A212062_Rimaniza_Project2Theme
+import com.example.a212062_rimaniza_project2.ui.theme.AppPink
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.FirebaseFirestore
 
 class MainActivity : ComponentActivity() {
+
+    private lateinit var auth: FirebaseAuth
+    private lateinit var db: FirebaseFirestore
+
     private val requestPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
-    ) { isGranted: Boolean ->
-        // Handle permission result if needed
-    }
+    ) { _: Boolean -> }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        auth = FirebaseAuth.getInstance()
+        db = FirebaseFirestore.getInstance()
+
         enableEdgeToEdge()
         
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -76,7 +84,13 @@ class MainActivity : ComponentActivity() {
         setContent {
             val viewModel: FoodViewModel = viewModel()
             
-            A212062_Rimaniza_Lab1Theme(darkTheme = viewModel.isDarkTheme) {
+            // Collect StateFlows as State for Compose
+            val allFoodItems by viewModel.allFoodItems.collectAsState()
+            val recentNames by viewModel.recentNames.collectAsState()
+            val shoppingItems by viewModel.shoppingItems.collectAsState()
+            val plannerEvents by viewModel.plannerEvents.collectAsState()
+
+            A212062_Rimaniza_Project2Theme(darkTheme = viewModel.isDarkTheme) {
                 val navController = rememberNavController()
                 val navBackStackEntry by navController.currentBackStackEntryAsState()
                 val currentRoute = navBackStackEntry?.destination?.route
@@ -129,23 +143,6 @@ class MainActivity : ComponentActivity() {
                                     unselectedTextColor = MaterialTheme.colorScheme.onSurface
                                 )
                             )
-                            /*NavigationDrawerItem(
-                                icon = { Icon(Icons.Filled.Dashboard, contentDescription = null) },
-                                label = { Text("Community") },
-                                selected = currentRoute == "Community",
-                                onClick = {
-                                    navController.navigate("Community")
-                                    scope.launch { drawerState.close() }
-                                },
-                                colors = NavigationDrawerItemDefaults.colors(
-                                    selectedContainerColor = AppPink.copy(alpha = 0.2f),
-                                    selectedIconColor = AppPink,
-                                    selectedTextColor = AppPink,
-                                    unselectedContainerColor = Color.Transparent,
-                                    unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    unselectedTextColor = MaterialTheme.colorScheme.onSurface
-                                )
-                            )*/
                             NavigationDrawerItem(
                                 icon = { Icon(Icons.Filled.Person, contentDescription = "Profile Screen") },
                                 label = { Text("Profile") },
@@ -287,8 +284,8 @@ class MainActivity : ComponentActivity() {
                                         onMenuClick = { scope.launch { drawerState.open() } },
                                         selectedCategory = viewModel.selectedCategory,
                                         onCategoryClick = { viewModel.selectedCategory = it },
-                                        allFoodItems = viewModel.allFoodItems,
-                                        recentNames = viewModel.recentNames,
+                                        allFoodItems = allFoodItems,
+                                        recentNames = recentNames,
                                         maxRecentItems = viewModel.maxRecentItems,
                                         lazyListState = lazyListState,
                                         showButton = showButton,
@@ -308,7 +305,7 @@ class MainActivity : ComponentActivity() {
                                 composable("Shopping") {
                                     ShoppingScreen(
                                         onMenuClick = { scope.launch { drawerState.open() } },
-                                        shoppingItems = viewModel.shoppingItems,
+                                        shoppingItems = shoppingItems,
                                         onAddItem = { viewModel.addShoppingItem(it) },
                                         onUpdateItem = { viewModel.updateShoppingItem(it) },
                                         onDeleteItem = { viewModel.deleteShoppingItem(it) },
@@ -335,8 +332,8 @@ class MainActivity : ComponentActivity() {
                                     
                                     PlannerScreen(
                                         onMenuClick = { scope.launch { drawerState.open() } },
-                                        plannerEvents = viewModel.plannerEvents,
-                                        allFoodItems = viewModel.allFoodItems,
+                                        plannerEvents = plannerEvents,
+                                        allFoodItems = allFoodItems,
                                         onAddEvent = { viewModel.addPlannerEvent(context, it) },
                                         onUpdateEvent = { viewModel.updatePlannerEvent(context, it) },
                                         onDeleteEvent = { viewModel.deletePlannerEvent(context, it) },
@@ -369,11 +366,11 @@ class MainActivity : ComponentActivity() {
                                     val categoryName = backStackEntry.arguments?.getString("categoryName") ?: ""
                                     
                                     val filteredItems = when (viewModel.selectedCategory) {
-                                        "Origin" -> viewModel.allFoodItems.filter { it.origin == categoryName }
-                                        "Type" -> viewModel.allFoodItems.filter { it.tags.contains(categoryName) }
-                                        "Favourite" -> viewModel.allFoodItems.filter { it.isFavourite }
-                                        "Recent" -> viewModel.recentNames.mapNotNull { name -> viewModel.allFoodItems.find { it.name == name } }
-                                        else -> viewModel.allFoodItems
+                                        "Origin" -> allFoodItems.filter { it.origin == categoryName }
+                                        "Type" -> allFoodItems.filter { it.tags.contains(categoryName) }
+                                        "Favourite" -> allFoodItems.filter { it.isFavourite }
+                                        "Recent" -> recentNames.mapNotNull { name -> allFoodItems.find { it.name == name } }
+                                        else -> allFoodItems
                                     }
 
                                     DetailScreen(
@@ -392,7 +389,7 @@ class MainActivity : ComponentActivity() {
                                 }
                                 composable("FoodDetail/{foodId}") { backStackEntry ->
                                     val foodId = backStackEntry.arguments?.getString("foodId") ?: ""
-                                    val foodItem = viewModel.allFoodItems.find { it.id == foodId }
+                                    val foodItem = allFoodItems.find { it.id == foodId }
                                     
                                     if (foodItem != null) {
                                         FoodDetailScreen(
@@ -433,8 +430,8 @@ fun HomeScreen(
     onMenuClick: () -> Unit,
     selectedCategory: String,
     onCategoryClick: (String) -> Unit,
-    allFoodItems: SnapshotStateList<FoodItemData>,
-    recentNames: SnapshotStateList<String>,
+    allFoodItems: List<FoodItemData>,
+    recentNames: List<String>,
     maxRecentItems: Int,
     lazyListState: LazyListState,
     showButton: Boolean,
@@ -506,29 +503,40 @@ fun HomeScreen(
                     .align(Alignment.BottomEnd)
                     .padding(16.dp)
             ) {
-                androidx.compose.animation.AnimatedVisibility(
+                ScrollToTopButton(
                     visible = showButton,
-                    enter = fadeIn(),
-                    exit = fadeOut()
-                ) {
-                    FloatingActionButton(
-                        onClick = {
-                            coroutineScope.launch {
-                                lazyListState.animateScrollToItem(0)
-                            }
-                        },
-                        containerColor = MaterialTheme.colorScheme.primaryContainer,
-                        contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                        shape = CircleShape,
-                        modifier = Modifier.size(56.dp)
-                    ) {
-                        Icon(
-                            Icons.Filled.ArrowUpward,
-                            contentDescription = "Scroll to top"
-                        )
+                    onClick = {
+                        coroutineScope.launch {
+                            lazyListState.animateScrollToItem(0)
+                        }
                     }
-                }
+                )
             }
+        }
+    }
+}
+
+@Composable
+fun ScrollToTopButton(
+    visible: Boolean,
+    onClick: () -> Unit
+) {
+    AnimatedVisibility(
+        visible = visible,
+        enter = fadeIn(),
+        exit = fadeOut()
+    ) {
+        FloatingActionButton(
+            onClick = onClick,
+            containerColor = MaterialTheme.colorScheme.primaryContainer,
+            contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+            shape = CircleShape,
+            modifier = Modifier.size(56.dp)
+        ) {
+            Icon(
+                Icons.Filled.ArrowUpward,
+                contentDescription = "Scroll to top"
+            )
         }
     }
 }
@@ -608,7 +616,7 @@ fun TopBar(
             modifier = Modifier.align(Alignment.CenterEnd)
         ) {
             Icon(
-                if (isSearchActive) Icons.Filled.KeyboardArrowLeft else Icons.Filled.Search,
+                if (isSearchActive) Icons.AutoMirrored.Filled.KeyboardArrowLeft else Icons.Filled.Search,
                 contentDescription = "Search",
                 tint = AppPink
             )
@@ -679,7 +687,7 @@ fun FoodCategory(
     onMoreClick: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val filteredCategories by remember(searchQuery, selectedCategory) {
+    val filteredCategories by remember(searchQuery, selectedCategory, allFoodItems) {
         derivedStateOf {
             val baseList = when (selectedCategory) {
                 "Favourite" -> allFoodItems.filter { it.isFavourite }
@@ -988,7 +996,7 @@ fun NavBar(navController: NavController, modifier: Modifier = Modifier) {
                 onClick = { navController.navigate("Shopping") }
             )
             NavItem(
-                icon = Icons.Filled.EventNote,
+                icon = Icons.AutoMirrored.Filled.EventNote,
                 label = "Planner", 
                 selected = currentRoute?.startsWith("Planner") == true,
                 onClick = { navController.navigate("Planner") }
@@ -1035,7 +1043,7 @@ fun NavItem(
 @Preview(showBackground = true)
 @Composable
 fun FoodAppPreview() {
-    A212062_Rimaniza_Lab1Theme(darkTheme = true) {
+    A212062_Rimaniza_Project2Theme(darkTheme = true) {
         // Simple preview with hardcoded values
         Column(modifier = Modifier.fillMaxSize()) {
             Text("Preview requires active NavController", modifier = Modifier.padding(16.dp))

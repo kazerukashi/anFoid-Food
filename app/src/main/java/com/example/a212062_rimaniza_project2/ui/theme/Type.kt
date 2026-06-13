@@ -1,10 +1,10 @@
-package com.example.a212062_rimaniza_lab1.ui.theme
+package com.example.a212062_rimaniza_project2.ui.theme
 
 import androidx.compose.material3.Typography
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
-import com.example.a212062_rimaniza_lab1.R
+import com.example.a212062_rimaniza_project2.R
 
 // Local Font Family
 val SpaceGrotesk = FontFamily(

@@ -22,6 +22,6 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "A212062_Rimaniza_Lab1"
+rootProject.name = "A212062_Rimaniza_Project2"
 include(":app")
  

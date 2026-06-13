@@ -1,4 +1,4 @@
-package com.example.a212062_rimaniza_lab1
+package com.example.a212062_rimaniza_project2
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -25,7 +25,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.a212062_rimaniza_lab1.ui.theme.AppPink
+import com.example.a212062_rimaniza_project2.ui.theme.AppPink
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

@@ -1,4 +1,4 @@
-package com.example.a212062_rimaniza_lab1.ui.theme
+package com.example.a212062_rimaniza_project2.ui.theme
 
 import androidx.compose.ui.graphics.Color
 

@@ -1,4 +1,4 @@
-package com.example.a212062_rimaniza_lab1
+package com.example.a212062_rimaniza_project2
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -25,7 +25,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.a212062_rimaniza_lab1.ui.theme.AppPink
+import com.example.a212062_rimaniza_project2.ui.theme.AppPink
 
 @Composable
 fun ShoppingScreen(

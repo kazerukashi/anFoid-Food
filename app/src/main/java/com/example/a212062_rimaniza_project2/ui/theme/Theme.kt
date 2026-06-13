@@ -1,4 +1,4 @@
-package com.example.a212062_rimaniza_lab1.ui.theme
+package com.example.a212062_rimaniza_project2.ui.theme
 
 import android.app.Activity
 import androidx.compose.ui.graphics.Color
@@ -276,7 +276,7 @@ val unspecified_scheme = ColorFamily(
 )
 
 @Composable
-fun A212062_Rimaniza_Lab1Theme(
+fun A212062_Rimaniza_Project2Theme(
     darkTheme: Boolean = isSystemInDarkTheme(),
     // Dynamic color is available on Android 12+
     dynamicColor: Boolean = false, // Set to false to prioritize our custom Pink/Grey theme
