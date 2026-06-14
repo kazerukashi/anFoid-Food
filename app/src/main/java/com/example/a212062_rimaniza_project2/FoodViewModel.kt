@@ -11,8 +11,10 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
@@ -22,6 +24,7 @@ import java.util.*
 
 class FoodViewModel(application: Application) : AndroidViewModel(application) {
     private val repository: FoodRepository
+    private val firestoreManager = FirestoreManager()
 
     init {
         val database = AppDatabase.getDatabase(application)
@@ -30,7 +33,8 @@ class FoodViewModel(application: Application) : AndroidViewModel(application) {
             database.shoppingDao(),
             database.plannerDao(),
             database.recentDao(),
-            database.settingsDao()
+            database.settingsDao(),
+            firestoreManager
         )
 
         // Initialize database if empty
@@ -53,12 +57,63 @@ class FoodViewModel(application: Application) : AndroidViewModel(application) {
     var searchQuery by mutableStateOf("")
     var isSearchActive by mutableStateOf(false)
     var selectedCategory by mutableStateOf("Origin")
+    var shoppingDisplayMode by mutableStateOf("By Food")
     
     // Persistent settings
     var maxRecentItems by mutableIntStateOf(30)
         private set
     var isDarkTheme by mutableStateOf(true)
         private set
+
+    // --- Community Posts ---
+    private val _posts = MutableStateFlow<List<Post>>(emptyList())
+    val posts: StateFlow<List<Post>> = _posts.asStateFlow()
+
+    fun fetchPosts() {
+        viewModelScope.launch {
+            _posts.value = repository.getPosts()
+        }
+    }
+
+    fun addPost(userName: String, content: String) {
+        viewModelScope.launch {
+            val newPost = Post(
+                userName = userName,
+                content = content,
+                userId = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid ?: "Anonymous"
+            )
+            repository.addPost(newPost)
+            fetchPosts() // Refresh
+        }
+    }
+
+    // --- User Profile ---
+    var userProfile by mutableStateOf<UserProfile?>(null)
+        private set
+
+    fun fetchUserProfile(userId: String) {
+        viewModelScope.launch {
+            userProfile = repository.getUserProfile(userId)
+            // Sync data from cloud when profile is loaded
+            repository.syncShoppingFromCloud(userId)
+            repository.syncPlannerFromCloud(userId)
+        }
+    }
+
+    fun saveUserProfile(profile: UserProfile) {
+        viewModelScope.launch {
+            repository.saveUserProfile(profile)
+            userProfile = profile
+        }
+    }
+
+    fun syncDataToCloud() {
+        val userId = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid ?: return
+        viewModelScope.launch {
+            repository.syncShoppingToCloud(userId, shoppingItems.value)
+            repository.syncPlannerToCloud(userId, plannerEvents.value)
+        }
+    }
 
     // --- Required Component 5: ViewModel exposing StateFlow to UI ---
     
@@ -136,6 +191,7 @@ class FoodViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             repository.addPlannerEvent(event)
             scheduleNotification(context, event)
+            syncDataToCloud()
         }
     }
 
@@ -211,6 +267,7 @@ class FoodViewModel(application: Application) : AndroidViewModel(application) {
                     foodName = trimmedFoodName
                 ))
             }
+            syncDataToCloud()
         }
     }
 
@@ -236,11 +293,17 @@ class FoodViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun updateShoppingItem(item: ShoppingItem) {
-        viewModelScope.launch { repository.updateShoppingItem(item) }
+        viewModelScope.launch { 
+            repository.updateShoppingItem(item)
+            syncDataToCloud()
+        }
     }
 
     fun deleteShoppingItem(item: ShoppingItem) {
-        viewModelScope.launch { repository.deleteShoppingItem(item) }
+        viewModelScope.launch { 
+            repository.deleteShoppingItem(item)
+            syncDataToCloud()
+        }
     }
 
     fun deleteShoppingItemsByIngredient(ingredient: String) {

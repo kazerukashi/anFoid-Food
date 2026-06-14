@@ -8,10 +8,50 @@ class FirestoreManager {
     private val db = FirebaseFirestore.getInstance()
     private val foodCollection = db.collection("food_items")
     private val postsCollection = db.collection("posts")
+    private val usersCollection = db.collection("users")
 
     suspend fun getAllFoodItems(): List<FoodItemData> {
         return try {
             foodCollection.get().await().toObjects(FoodItemData::class.java)
+        } catch (e: Exception) {
+            emptyList()
+        }
+    }
+
+    // --- Shopping List Sync ---
+    suspend fun saveShoppingItems(userId: String, items: List<ShoppingItem>) {
+        try {
+            val userShopping = usersCollection.document(userId).collection("shopping")
+            // Simple approach: replace all
+            items.forEach { item ->
+                userShopping.document(item.id).set(item).await()
+            }
+        } catch (e: Exception) {}
+    }
+
+    suspend fun getShoppingItems(userId: String): List<ShoppingItem> {
+        return try {
+            usersCollection.document(userId).collection("shopping")
+                .get().await().toObjects(ShoppingItem::class.java)
+        } catch (e: Exception) {
+            emptyList()
+        }
+    }
+
+    // --- Planner Sync ---
+    suspend fun savePlannerEvents(userId: String, events: List<PlannerEvent>) {
+        try {
+            val userPlanner = usersCollection.document(userId).collection("planner")
+            events.forEach { event ->
+                userPlanner.document(event.id).set(event).await()
+            }
+        } catch (e: Exception) {}
+    }
+
+    suspend fun getPlannerEvents(userId: String): List<PlannerEvent> {
+        return try {
+            usersCollection.document(userId).collection("planner")
+                .get().await().toObjects(PlannerEvent::class.java)
         } catch (e: Exception) {
             emptyList()
         }
@@ -32,6 +72,20 @@ class FirestoreManager {
                 .get().await().toObjects(Post::class.java)
         } catch (e: Exception) {
             emptyList()
+        }
+    }
+
+    suspend fun saveUserProfile(profile: UserProfile) {
+        try {
+            usersCollection.document(profile.id).set(profile).await()
+        } catch (e: Exception) {}
+    }
+
+    suspend fun getUserProfile(userId: String): UserProfile? {
+        return try {
+            usersCollection.document(userId).get().await().toObject(UserProfile::class.java)
+        } catch (e: Exception) {
+            null
         }
     }
     

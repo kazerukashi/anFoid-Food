@@ -78,8 +78,9 @@ fun FoodDetailScreen(
                         .padding(vertical = 16.dp),
                     verticalAlignment = Alignment.Top
                 ) {
+                    val context = androidx.compose.ui.platform.LocalContext.current
                     Image(
-                        painter = painterResource(id = foodItem.imageRes),
+                        painter = painterResource(id = getImageResource(context, foodItem.imageResName)),
                         contentDescription = foodItem.name,
                         modifier = Modifier
                             .size(200.dp)

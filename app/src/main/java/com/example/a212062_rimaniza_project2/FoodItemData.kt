@@ -14,12 +14,13 @@ data class RecipeSection(
 
 @Entity(tableName = "food_items")
 data class FoodItemData(
-    @PrimaryKey val id: String,
-    val imageRes: Int,
-    val name: String,
-    val origin: String,
-    val sections: List<RecipeSection>,
-    var isFavourite: Boolean = false
+    @PrimaryKey val id: String = "",
+    val imageResName: String = "", // Storing name instead of Int ID
+    val name: String = "",
+    val origin: String = "",
+    val sections: List<RecipeSection> = emptyList(),
+    var isFavourite: Boolean = false,
+    val imageUrl: String? = null // For external images
 ) {
     val ingredients: List<String> get() = sections.flatMap { it.ingredients }
     
@@ -54,6 +55,24 @@ data class FoodItemData(
             return list.distinct()
         }
 }
+
+data class Post(
+    val id: String = "",
+    val userId: String = "",
+    val userName: String = "",
+    val content: String = "",
+    val timestamp: Long = System.currentTimeMillis(),
+    val likes: Int = 0,
+    val imageUrl: String? = null
+)
+
+data class UserProfile(
+    val id: String = "",
+    val name: String = "",
+    val email: String = "",
+    val bio: String = "",
+    val profilePicUrl: String? = null
+)
 
 @Entity(tableName = "shopping_items")
 data class ShoppingItem(

@@ -33,6 +33,9 @@ interface ShoppingDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertItem(item: ShoppingItem)
 
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertItems(items: List<ShoppingItem>)
+
     @Update
     suspend fun updateItem(item: ShoppingItem)
 
@@ -53,6 +56,9 @@ interface PlannerDao {
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertEvent(event: PlannerEvent)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertEvents(events: List<PlannerEvent>)
 
     @Update
     suspend fun updateEvent(event: PlannerEvent)
@@ -82,7 +88,7 @@ interface SettingsDao {
     suspend fun saveSetting(setting: AppSetting)
 }
 
-@Database(entities = [FoodItemData::class, ShoppingItem::class, PlannerEvent::class, RecentItem::class, AppSetting::class], version = 2, exportSchema = false)
+@Database(entities = [FoodItemData::class, ShoppingItem::class, PlannerEvent::class, RecentItem::class, AppSetting::class], version = 5, exportSchema = false)
 @TypeConverters(Converters::class)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun foodDao(): FoodDao

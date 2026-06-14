@@ -315,7 +315,9 @@ class MainActivity : ComponentActivity() {
                                         },
                                         onItemCheckedChange = { id, checked ->
                                             viewModel.toggleShoppingItemCheckedById(id, checked)
-                                        }
+                                        },
+                                        displayMode = viewModel.shoppingDisplayMode,
+                                        onDisplayModeChange = { viewModel.shoppingDisplayMode = it }
                                     )
                                 }
                                 composable(
@@ -343,13 +345,15 @@ class MainActivity : ComponentActivity() {
                                 composable("Community") {
                                     CommunityScreen(
                                         onMenuClick = { scope.launch { drawerState.open() } },
-                                        onGoToProfile = { navController.navigate("Profile") }
+                                        onGoToProfile = { navController.navigate("Profile") },
+                                        viewModel = viewModel
                                     )
                                 }
                                 composable("Profile") {
                                     ProfileScreen(
                                         onMenuClick = { scope.launch { drawerState.open() } },
-                                        onBackClick = { navController.popBackStack() }
+                                        onBackClick = { navController.popBackStack() },
+                                        viewModel = viewModel
                                     )
                                 }
                                 composable("Settings") {
@@ -909,6 +913,7 @@ fun FoodItem(
     onClick: () -> Unit,
     onFavouriteToggle: () -> Unit
 ) {
+    val context = androidx.compose.ui.platform.LocalContext.current
     Card(
         modifier = modifier
             .width(160.dp)
@@ -922,7 +927,7 @@ fun FoodItem(
         Column {
             Box {
                 Image(
-                    painter = painterResource(id = item.imageRes),
+                    painter = painterResource(id = getImageResource(context, item.imageResName)),
                     contentDescription = item.name,
                     modifier = Modifier
                         .fillMaxWidth()

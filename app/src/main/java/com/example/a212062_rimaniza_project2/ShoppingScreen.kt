@@ -36,9 +36,10 @@ fun ShoppingScreen(
     onDeleteItem: (ShoppingItem) -> Unit,
     onDeleteIngredient: (String) -> Unit,
     onCheckedChange: (String, Boolean) -> Unit,
-    onItemCheckedChange: (String, Boolean) -> Unit
+    onItemCheckedChange: (String, Boolean) -> Unit,
+    displayMode: String,
+    onDisplayModeChange: (String) -> Unit
 ) {
-    var displayMode by remember { mutableStateOf("Ungrouped") }
     var showAddDialog by remember { mutableStateOf(false) }
     var itemToEdit by remember { mutableStateOf<ShoppingItem?>(null) }
     var itemToDelete by remember { mutableStateOf<ShoppingItem?>(null) }
@@ -81,16 +82,16 @@ fun ShoppingScreen(
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             CategoryItem(
-                icon = Icons.Default.ShoppingCart,
-                label = "Ungrouped",
-                isSelected = displayMode == "Ungrouped",
-                onClick = { displayMode = "Ungrouped" }
-            )
-            CategoryItem(
                 icon = Icons.Default.Flatware,
                 label = "By Food",
                 isSelected = displayMode == "By Food",
-                onClick = { displayMode = "By Food" }
+                onClick = { onDisplayModeChange("By Food") }
+            )
+            CategoryItem(
+                icon = Icons.Default.ShoppingCart,
+                label = "All",
+                isSelected = displayMode == "All",
+                onClick = { onDisplayModeChange("All") }
             )
         }
 
@@ -110,7 +111,7 @@ fun ShoppingScreen(
                     contentPadding = PaddingValues(16.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    if (displayMode == "Ungrouped") {
+                    if (displayMode == "All") {
                         val groupedItems = shoppingItems.groupBy { it.ingredient }
                         items(groupedItems.toList()) { (ingredient, items) ->
                             ShoppingListItem(

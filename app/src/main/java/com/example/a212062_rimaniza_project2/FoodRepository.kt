@@ -7,18 +7,53 @@ class FoodRepository(
     private val shoppingDao: ShoppingDao,
     private val plannerDao: PlannerDao,
     private val recentDao: RecentDao,
-    private val settingsDao: SettingsDao
+    private val settingsDao: SettingsDao,
+    private val firestoreManager: FirestoreManager
 ) {
     // --- Food Items ---
     val allFoodItems: Flow<List<FoodItemData>> = foodDao.getAllFoodItems()
 
     suspend fun initializeFoodItems() {
-        // Only insert if empty (you might want to check this or use REPLACE)
-        foodDao.insertFoodItems(getStaticFoodItems())
+        // First try to fetch from Firestore
+        val remoteItems = firestoreManager.getAllFoodItems()
+        if (remoteItems.isNotEmpty()) {
+            foodDao.insertFoodItems(remoteItems)
+        } else {
+            // Fallback to static if Firestore is empty or unavailable
+            val staticItems = getStaticFoodItems()
+            foodDao.insertFoodItems(staticItems)
+            // Optionally upload to Firestore for next time
+            firestoreManager.uploadInitialData(staticItems)
+        }
     }
 
     suspend fun updateFoodItem(item: FoodItemData) {
         foodDao.updateFoodItem(item)
+    }
+
+    // --- Community ---
+    suspend fun getPosts(): List<Post> = firestoreManager.getPosts()
+    suspend fun addPost(post: Post) = firestoreManager.addPost(post)
+
+    // --- User Profile ---
+    suspend fun saveUserProfile(profile: UserProfile) = firestoreManager.saveUserProfile(profile)
+    suspend fun getUserProfile(userId: String) = firestoreManager.getUserProfile(userId)
+
+    // --- Cloud Sync ---
+    suspend fun syncShoppingToCloud(userId: String, items: List<ShoppingItem>) = firestoreManager.saveShoppingItems(userId, items)
+    suspend fun syncShoppingFromCloud(userId: String) {
+        val cloudItems = firestoreManager.getShoppingItems(userId)
+        if (cloudItems.isNotEmpty()) {
+            shoppingDao.insertItems(cloudItems)
+        }
+    }
+
+    suspend fun syncPlannerToCloud(userId: String, events: List<PlannerEvent>) = firestoreManager.savePlannerEvents(userId, events)
+    suspend fun syncPlannerFromCloud(userId: String) {
+        val cloudEvents = firestoreManager.getPlannerEvents(userId)
+        if (cloudEvents.isNotEmpty()) {
+            plannerDao.insertEvents(cloudEvents)
+        }
     }
 
     // --- Shopping List ---
@@ -74,7 +109,7 @@ class FoodRepository(
         return listOf(
             FoodItemData(
                 id = "1",
-                imageRes = R.drawable.nasmak,
+                imageResName = "nasmak",
                 name = "Nasi Lemak",
                 origin = "Malay",
                 sections = listOf(
@@ -97,7 +132,7 @@ class FoodRepository(
             ),
             FoodItemData(
                 id = "2",
-                imageRes = R.drawable.margherita_pizza,
+                imageResName = "margherita_pizza",
                 name = "Margherita Pizza",
                 origin = "Italian",
                 sections = listOf(
@@ -120,7 +155,7 @@ class FoodRepository(
             ),
             FoodItemData(
                 id = "3",
-                imageRes = R.drawable.beefrendang,
+                imageResName = "beefrendang",
                 name = "Beef Rendang",
                 origin = "Malay",
                 sections = listOf(
@@ -133,7 +168,7 @@ class FoodRepository(
             ),
             FoodItemData(
                 id = "4",
-                imageRes = R.drawable.satay,
+                imageResName = "satay",
                 name = "Satay",
                 origin = "Malay",
                 sections = listOf(
@@ -146,7 +181,7 @@ class FoodRepository(
             ),
             FoodItemData(
                 id = "5",
-                imageRes = R.drawable.pekingduck,
+                imageResName = "pekingduck",
                 name = "Peking Duck",
                 origin = "Chinese",
                 sections = listOf(
@@ -159,7 +194,7 @@ class FoodRepository(
             ),
             FoodItemData(
                 id = "6",
-                imageRes = R.drawable.xiaolongbao,
+                imageResName = "xiaolongbao",
                 name = "Xiaolongbao",
                 origin = "Chinese",
                 sections = listOf(
@@ -172,7 +207,7 @@ class FoodRepository(
             ),
             FoodItemData(
                 id = "7",
-                imageRes = R.drawable.chowmein,
+                imageResName = "chowmein",
                 name = "Chow Mein",
                 origin = "Chinese",
                 sections = listOf(
@@ -185,7 +220,7 @@ class FoodRepository(
             ),
             FoodItemData(
                 id = "8",
-                imageRes = R.drawable.butterchicken,
+                imageResName = "butterchicken",
                 name = "Butter Chicken",
                 origin = "Indian",
                 sections = listOf(
@@ -198,7 +233,7 @@ class FoodRepository(
             ),
             FoodItemData(
                 id = "9",
-                imageRes = R.drawable.biryani,
+                imageResName = "biryani",
                 name = "Biryani",
                 origin = "Indian",
                 sections = listOf(
@@ -211,7 +246,7 @@ class FoodRepository(
             ),
             FoodItemData(
                 id = "10",
-                imageRes = R.drawable.samosa,
+                imageResName = "samosa",
                 name = "Samosa",
                 origin = "Indian",
                 sections = listOf(
@@ -224,7 +259,7 @@ class FoodRepository(
             ),
             FoodItemData(
                 id = "11",
-                imageRes = R.drawable.lasagna,
+                imageResName = "lasagna",
                 name = "Lasagna",
                 origin = "Italian",
                 sections = listOf(
@@ -237,7 +272,7 @@ class FoodRepository(
             ),
             FoodItemData(
                 id = "12",
-                imageRes = R.drawable.spaghetti_bolognese,
+                imageResName = "spaghetti_bolognese",
                 name = "Spaghetti Bolognese",
                 origin = "Italian",
                 sections = listOf(

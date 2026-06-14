@@ -1,6 +1,7 @@
 package com.example.a212062_rimaniza_project2
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -17,114 +18,204 @@ import com.example.a212062_rimaniza_project2.ui.theme.AppPink
 @Composable
 fun CommunityScreen(
     onMenuClick: () -> Unit,
-    onGoToProfile: () -> Unit
+    onGoToProfile: () -> Unit,
+    viewModel: FoodViewModel
 ) {
-    var showPopup by remember { mutableStateOf(false) }
+    val posts by viewModel.posts.collectAsState()
+    var showAddDialog by remember { mutableStateOf(false) }
+    var newPostContent by remember { mutableStateOf("") }
+    var userName by remember { mutableStateOf("User") } // Should come from Auth
 
-    Column(
-        modifier = Modifier.fillMaxSize()
-    ) {
-        Spacer(modifier = Modifier.height(24.dp))
-        
-        // Top Bar
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp)
-                .height(56.dp),
-            contentAlignment = Alignment.Center
-        ) {
-            IconButton(
-                onClick = onMenuClick,
-                modifier = Modifier.align(Alignment.CenterStart)
-            ) {
-                Icon(Icons.Filled.Menu, contentDescription = "Menu", tint = AppPink)
-            }
-            
-            Text(
-                text = "Community",
-                style = MaterialTheme.typography.titleLarge.copy(
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 24.sp
-                ),
-                color = AppPink
-            )
+    LaunchedEffect(Unit) {
+        viewModel.fetchPosts()
+    }
 
-            IconButton(
-                onClick = { showPopup = true },
-                modifier = Modifier.align(Alignment.CenterEnd)
+    Scaffold(
+        topBar = {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp)
+                    .height(56.dp)
+                    .padding(top = 24.dp),
+                contentAlignment = Alignment.Center
             ) {
-                Icon(Icons.Filled.Add, contentDescription = "Add", tint = AppPink)
+                IconButton(
+                    onClick = onMenuClick,
+                    modifier = Modifier.align(Alignment.CenterStart)
+                ) {
+                    Icon(Icons.Filled.Menu, contentDescription = "Menu", tint = AppPink)
+                }
+                
+                Text(
+                    text = "Community",
+                    style = MaterialTheme.typography.titleLarge.copy(
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 24.sp
+                    ),
+                    color = AppPink
+                )
+
+                IconButton(
+                    onClick = { showAddDialog = true },
+                    modifier = Modifier.align(Alignment.CenterEnd)
+                ) {
+                    Icon(Icons.Filled.Add, contentDescription = "Add", tint = AppPink)
+                }
             }
         }
-
-        HorizontalDivider(
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-            thickness = 1.dp,
-            color = MaterialTheme.colorScheme.outlineVariant
-        )
-
-        // Content
+    ) { padding ->
         Column(
             modifier = Modifier
-                .weight(1f)
-                .fillMaxWidth(),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
+                .fillMaxSize()
+                .padding(padding)
         ) {
-            Icon(
-                imageVector = Icons.Filled.Dashboard,
-                contentDescription = null,
-                modifier = Modifier.size(120.dp),
-                tint = AppPink.copy(alpha = 0.6f)
+            HorizontalDivider(
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                thickness = 1.dp,
+                color = MaterialTheme.colorScheme.outlineVariant
             )
-            
-            Spacer(modifier = Modifier.height(24.dp))
-            
-            Text(
-                text = "No posts from our community yet!",
-                style = MaterialTheme.typography.bodyLarge,
-                textAlign = TextAlign.Center
-            )
-            
-            Spacer(modifier = Modifier.height(32.dp))
-            
-            Button(
-                onClick = { showPopup = true },
-                colors = ButtonDefaults.buttonColors(containerColor = AppPink),
-                shape = MaterialTheme.shapes.medium
-            ) {
-                Text("Create a New Post", color = Color.White, fontWeight = FontWeight.Bold)
+
+            if (posts.isEmpty()) {
+                Column(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxWidth(),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.Dashboard,
+                        contentDescription = null,
+                        modifier = Modifier.size(120.dp),
+                        tint = AppPink.copy(alpha = 0.6f)
+                    )
+                    
+                    Spacer(modifier = Modifier.height(24.dp))
+                    
+                    Text(
+                        text = "No posts from our community yet!",
+                        style = MaterialTheme.typography.bodyLarge,
+                        textAlign = TextAlign.Center
+                    )
+                    
+                    Spacer(modifier = Modifier.height(32.dp))
+                    
+                    Button(
+                        onClick = { showAddDialog = true },
+                        colors = ButtonDefaults.buttonColors(containerColor = AppPink),
+                        shape = MaterialTheme.shapes.medium
+                    ) {
+                        Text("Create a New Post", color = Color.White, fontWeight = FontWeight.Bold)
+                    }
+                }
+            } else {
+                androidx.compose.foundation.lazy.LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    items(posts.size) { index ->
+                        val post = posts[index]
+                        PostItem(post)
+                    }
+                }
             }
         }
     }
 
-    if (showPopup) {
+    if (showAddDialog) {
         AlertDialog(
-            onDismissRequest = { showPopup = false },
-            icon = {
-                Icon(Icons.Filled.Error, contentDescription = null, tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(48.dp))
-            },
+            onDismissRequest = { showAddDialog = false },
+            title = { Text("Create New Post") },
             text = {
-                Text(
-                    "You must be logged in to post.",
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier.fillMaxWidth()
-                )
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedTextField(
+                        value = userName,
+                        onValueChange = { userName = it },
+                        label = { Text("Display Name") },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    OutlinedTextField(
+                        value = newPostContent,
+                        onValueChange = { newPostContent = it },
+                        label = { Text("What's on your mind?") },
+                        modifier = Modifier.fillMaxWidth(),
+                        minLines = 3
+                    )
+                }
             },
             confirmButton = {
-                TextButton(onClick = { showPopup = false }) {
-                    Text("OK", color = AppPink)
+                TextButton(
+                    onClick = {
+                        if (newPostContent.isNotBlank()) {
+                            viewModel.addPost(userName, newPostContent)
+                            newPostContent = ""
+                            showAddDialog = false
+                        }
+                    }
+                ) {
+                    Text("Post", color = AppPink)
                 }
             },
             dismissButton = {
-                TextButton(onClick = { 
-                    showPopup = false
-                    onGoToProfile()
-                }) {
-                    Text("Go to profile", color = AppPink)
+                TextButton(onClick = { showAddDialog = false }) {
+                    Text("Cancel")
                 }
             }
         )
+    }
+}
+
+@Composable
+fun PostItem(post: Post) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    Icons.Filled.AccountCircle,
+                    contentDescription = null,
+                    modifier = Modifier.size(40.dp),
+                    tint = AppPink
+                )
+                Spacer(modifier = Modifier.width(12.dp))
+                Column {
+                    Text(
+                        text = post.userName,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text(
+                        text = java.text.SimpleDateFormat("MMM dd, yyyy HH:mm", java.util.Locale.getDefault()).format(post.timestamp),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+            
+            Spacer(modifier = Modifier.height(12.dp))
+            
+            Text(
+                text = post.content,
+                style = MaterialTheme.typography.bodyLarge
+            )
+            
+            Spacer(modifier = Modifier.height(12.dp))
+            
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.End
+            ) {
+                TextButton(onClick = { /* Implement Like */ }) {
+                    Icon(Icons.Filled.FavoriteBorder, contentDescription = null, modifier = Modifier.size(20.dp))
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(post.likes.toString())
+                }
+            }
+        }
     }
 }
