@@ -23,7 +23,8 @@ fun DetailScreen(
     onBackClick: () -> Unit,
     onFoodClick: (FoodItemData) -> Unit,
     onFavouriteToggle: (FoodItemData) -> Unit,
-    maxRecentItems: Int = 0
+    maxRecentItems: Int = 0,
+    foodViewModel: FoodViewModel
 ) {
     Column(
         modifier = Modifier.fillMaxSize()
@@ -93,7 +94,8 @@ fun DetailScreen(
                     item = item,
                     modifier = Modifier.fillMaxWidth(),
                     onClick = { onFoodClick(item) },
-                    onFavouriteToggle = { onFavouriteToggle(item) }
+                    onFavouriteToggle = { onFavouriteToggle(item) },
+                    foodViewModel = foodViewModel
                 )
             }
         }

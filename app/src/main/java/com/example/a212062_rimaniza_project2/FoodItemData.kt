@@ -1,5 +1,6 @@
 package com.example.a212062_rimaniza_project2
 
+import com.google.firebase.firestore.Exclude
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 import androidx.room.TypeConverter
@@ -7,9 +8,9 @@ import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 
 data class RecipeSection(
-    val sectionName: String,
-    val ingredients: List<String>,
-    val instructions: List<String>
+    val sectionName: String = "",
+    val ingredients: List<String> = emptyList(),
+    val instructions: List<String> = emptyList()
 )
 
 @Entity(tableName = "food_items")
@@ -20,10 +21,13 @@ data class FoodItemData(
     val origin: String = "",
     val sections: List<RecipeSection> = emptyList(),
     var isFavourite: Boolean = false,
-    val imageUrl: String? = null // For external images
+    val imageUrl: String? = null, // For external images
+    val isCommunity: Boolean = false
 ) {
+    @get:Exclude
     val ingredients: List<String> get() = sections.flatMap { it.ingredients }
     
+    @get:Exclude
     val tags: List<String>
         get() {
             val list = mutableListOf<String>()
@@ -60,7 +64,8 @@ data class Post(
     val id: String = "",
     val userId: String = "",
     val userName: String = "",
-    val content: String = "",
+    val foodName: String = "",
+    val components: List<RecipeSection> = emptyList(),
     val timestamp: Long = System.currentTimeMillis(),
     val likes: Int = 0,
     val imageUrl: String? = null
@@ -71,12 +76,14 @@ data class UserProfile(
     val name: String = "",
     val email: String = "",
     val bio: String = "",
-    val profilePicUrl: String? = null
+    val profilePicUrl: String? = null,
+    val role: String = "user" // "user" or "admin"
 )
 
 @Entity(tableName = "shopping_items")
 data class ShoppingItem(
     @PrimaryKey val id: String = java.util.UUID.randomUUID().toString(),
+    val userId: String = "",
     val foodName: String?,
     val ingredient: String,
     val amount: String,
@@ -86,6 +93,7 @@ data class ShoppingItem(
 @Entity(tableName = "planner_events")
 data class PlannerEvent(
     @PrimaryKey val id: String = java.util.UUID.randomUUID().toString(),
+    val userId: String = "",
     val title: String,
     val foodItem: FoodItemData?,
     val date: String,
@@ -96,9 +104,10 @@ data class PlannerEvent(
     val alarmEnabled: Boolean = false
 )
 
-@Entity(tableName = "recent_items")
+@Entity(tableName = "recent_items", primaryKeys = ["userId", "foodName"])
 data class RecentItem(
-    @PrimaryKey val foodName: String,
+    val userId: String = "",
+    val foodName: String,
     val timestamp: Long = System.currentTimeMillis()
 )
 

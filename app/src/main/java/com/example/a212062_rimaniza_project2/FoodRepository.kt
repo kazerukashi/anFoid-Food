@@ -14,16 +14,19 @@ class FoodRepository(
     val allFoodItems: Flow<List<FoodItemData>> = foodDao.getAllFoodItems()
 
     suspend fun initializeFoodItems() {
-        // First try to fetch from Firestore
+        val staticItems = getStaticFoodItems()
         val remoteItems = firestoreManager.getAllFoodItems()
-        if (remoteItems.isNotEmpty()) {
-            foodDao.insertFoodItems(remoteItems)
-        } else {
-            // Fallback to static if Firestore is empty or unavailable
-            val staticItems = getStaticFoodItems()
-            foodDao.insertFoodItems(staticItems)
-            // Optionally upload to Firestore for next time
+        
+        // If remote is missing items, upload them
+        if (remoteItems.size < staticItems.size) {
             firestoreManager.uploadInitialData(staticItems)
+            // Re-fetch to get the latest state
+            val updatedRemote = firestoreManager.getAllFoodItems()
+            foodDao.deleteAll()
+            foodDao.insertFoodItems(updatedRemote)
+        } else {
+            foodDao.deleteAll()
+            foodDao.insertFoodItems(remoteItems)
         }
     }
 
@@ -31,19 +34,44 @@ class FoodRepository(
         foodDao.updateFoodItem(item)
     }
 
+    suspend fun addFoodItemToCloud(item: FoodItemData) = firestoreManager.addFoodItem(item)
+    suspend fun updateFoodItemInCloud(item: FoodItemData) = firestoreManager.updateFoodItem(item)
+    suspend fun deleteFoodItemFromCloud(foodId: String) {
+        firestoreManager.deleteFoodItem(foodId)
+        foodDao.deleteFoodItem(foodId)
+    }
+
+    suspend fun renameOrigin(oldName: String, newName: String) {
+        firestoreManager.renameOrigin(oldName, newName)
+        // No direct way to update all in Room easily without custom query, 
+        // but we can just clear and re-sync
+        initializeFoodItems()
+    }
+
+    suspend fun deleteOrigin(originName: String) {
+        firestoreManager.deleteOrigin(originName)
+        initializeFoodItems()
+    }
+
     // --- Community ---
     suspend fun getPosts(): List<Post> = firestoreManager.getPosts()
     suspend fun addPost(post: Post) = firestoreManager.addPost(post)
+    suspend fun updatePost(post: Post) = firestoreManager.updatePost(post)
+    suspend fun deletePost(postId: String) = firestoreManager.deletePost(postId)
 
     // --- User Profile ---
     suspend fun saveUserProfile(profile: UserProfile) = firestoreManager.saveUserProfile(profile)
     suspend fun getUserProfile(userId: String) = firestoreManager.getUserProfile(userId)
+    suspend fun getEmailByUsername(username: String) = firestoreManager.getEmailByUsername(username)
+    suspend fun isUsernameTaken(username: String) = firestoreManager.isUsernameTaken(username)
+    suspend fun isEmailTaken(email: String) = firestoreManager.isEmailTaken(email)
 
     // --- Cloud Sync ---
     suspend fun syncShoppingToCloud(userId: String, items: List<ShoppingItem>) = firestoreManager.saveShoppingItems(userId, items)
     suspend fun syncShoppingFromCloud(userId: String) {
         val cloudItems = firestoreManager.getShoppingItems(userId)
         if (cloudItems.isNotEmpty()) {
+            shoppingDao.clearAll(userId)
             shoppingDao.insertItems(cloudItems)
         }
     }
@@ -52,12 +80,19 @@ class FoodRepository(
     suspend fun syncPlannerFromCloud(userId: String) {
         val cloudEvents = firestoreManager.getPlannerEvents(userId)
         if (cloudEvents.isNotEmpty()) {
+            plannerDao.clearAll(userId)
             plannerDao.insertEvents(cloudEvents)
         }
     }
 
+    suspend fun syncSettingsToCloud(userId: String, isDark: Boolean, maxRecent: Int) = firestoreManager.saveSettings(userId, isDark, maxRecent)
+    suspend fun syncSettingsFromCloud(userId: String): Map<String, Any>? = firestoreManager.getSettings(userId)
+
+    suspend fun syncFavouritesToCloud(userId: String, favIds: List<String>) = firestoreManager.saveFavourites(userId, favIds)
+    suspend fun syncFavouritesFromCloud(userId: String): List<String> = firestoreManager.getFavourites(userId)
+
     // --- Shopping List ---
-    val shoppingItems: Flow<List<ShoppingItem>> = shoppingDao.getShoppingItems()
+    fun getShoppingItems(userId: String): Flow<List<ShoppingItem>> = shoppingDao.getShoppingItems(userId)
 
     suspend fun addShoppingItem(item: ShoppingItem) {
         shoppingDao.insertItem(item)
@@ -71,12 +106,20 @@ class FoodRepository(
         shoppingDao.deleteItem(item)
     }
 
-    suspend fun deleteShoppingItemsByIngredient(ingredient: String) {
-        shoppingDao.deleteByIngredient(ingredient)
+    suspend fun deleteShoppingItemsByIngredient(userId: String, ingredient: String) {
+        shoppingDao.deleteByIngredient(userId, ingredient)
+    }
+
+    suspend fun deleteShoppingItemsByFoodName(userId: String, foodName: String) {
+        shoppingDao.deleteByFoodName(userId, foodName)
+    }
+
+    suspend fun renameShoppingFood(userId: String, oldName: String, newName: String) {
+        shoppingDao.updateFoodName(userId, oldName, newName)
     }
 
     // --- Planner ---
-    val plannerEvents: Flow<List<PlannerEvent>> = plannerDao.getPlannerEvents()
+    fun getPlannerEvents(userId: String): Flow<List<PlannerEvent>> = plannerDao.getPlannerEvents(userId)
 
     suspend fun addPlannerEvent(event: PlannerEvent) {
         plannerDao.insertEvent(event)
@@ -91,11 +134,11 @@ class FoodRepository(
     }
 
     // --- Recent Items ---
-    val recentItems: Flow<List<RecentItem>> = recentDao.getRecentItems()
+    fun getRecentItems(userId: String): Flow<List<RecentItem>> = recentDao.getRecentItems(userId)
 
-    suspend fun addToRecent(foodName: String, limit: Int) {
-        recentDao.insertRecent(RecentItem(foodName))
-        recentDao.trimRecent(limit)
+    suspend fun addToRecent(userId: String, foodName: String, limit: Int) {
+        recentDao.insertRecent(RecentItem(userId = userId, foodName = foodName))
+        recentDao.trimRecent(userId, limit)
     }
 
     // --- Settings ---

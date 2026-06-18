@@ -15,20 +15,26 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface FoodDao {
-    @Query("SELECT * FROM food_items")
+    @Query("SELECT * FROM food_items ORDER BY name ASC")
     fun getAllFoodItems(): Flow<List<FoodItemData>>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertFoodItems(items: List<FoodItemData>)
 
-    @Update
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun updateFoodItem(item: FoodItemData)
+
+    @Query("DELETE FROM food_items WHERE id = :foodId")
+    suspend fun deleteFoodItem(foodId: String)
+
+    @Query("DELETE FROM food_items")
+    suspend fun deleteAll()
 }
 
 @Dao
 interface ShoppingDao {
-    @Query("SELECT * FROM shopping_items")
-    fun getShoppingItems(): Flow<List<ShoppingItem>>
+    @Query("SELECT * FROM shopping_items WHERE userId = :userId")
+    fun getShoppingItems(userId: String): Flow<List<ShoppingItem>>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertItem(item: ShoppingItem)
@@ -42,17 +48,23 @@ interface ShoppingDao {
     @Delete
     suspend fun deleteItem(item: ShoppingItem)
 
-    @Query("DELETE FROM shopping_items WHERE ingredient = :ingredient")
-    suspend fun deleteByIngredient(ingredient: String)
+    @Query("DELETE FROM shopping_items WHERE userId = :userId AND ingredient = :ingredient")
+    suspend fun deleteByIngredient(userId: String, ingredient: String)
 
-    @Query("DELETE FROM shopping_items")
-    suspend fun deleteAll()
+    @Query("DELETE FROM shopping_items WHERE userId = :userId AND foodName = :foodName")
+    suspend fun deleteByFoodName(userId: String, foodName: String)
+
+    @Query("UPDATE shopping_items SET foodName = :newName WHERE userId = :userId AND foodName = :oldName")
+    suspend fun updateFoodName(userId: String, oldName: String, newName: String)
+
+    @Query("DELETE FROM shopping_items WHERE userId = :userId")
+    suspend fun clearAll(userId: String)
 }
 
 @Dao
 interface PlannerDao {
-    @Query("SELECT * FROM planner_events")
-    fun getPlannerEvents(): Flow<List<PlannerEvent>>
+    @Query("SELECT * FROM planner_events WHERE userId = :userId")
+    fun getPlannerEvents(userId: String): Flow<List<PlannerEvent>>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertEvent(event: PlannerEvent)
@@ -65,18 +77,24 @@ interface PlannerDao {
 
     @Delete
     suspend fun deleteEvent(event: PlannerEvent)
+
+    @Query("DELETE FROM planner_events WHERE userId = :userId")
+    suspend fun clearAll(userId: String)
 }
 
 @Dao
 interface RecentDao {
-    @Query("SELECT * FROM recent_items ORDER BY timestamp DESC")
-    fun getRecentItems(): Flow<List<RecentItem>>
+    @Query("SELECT * FROM recent_items WHERE userId = :userId ORDER BY timestamp DESC")
+    fun getRecentItems(userId: String): Flow<List<RecentItem>>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertRecent(item: RecentItem)
 
-    @Query("DELETE FROM recent_items WHERE foodName NOT IN (SELECT foodName FROM recent_items ORDER BY timestamp DESC LIMIT :limit)")
-    suspend fun trimRecent(limit: Int)
+    @Query("DELETE FROM recent_items WHERE userId = :userId AND foodName NOT IN (SELECT foodName FROM recent_items WHERE userId = :userId ORDER BY timestamp DESC LIMIT :limit)")
+    suspend fun trimRecent(userId: String, limit: Int)
+
+    @Query("DELETE FROM recent_items WHERE userId = :userId")
+    suspend fun clearAll(userId: String)
 }
 
 @Dao
@@ -88,7 +106,7 @@ interface SettingsDao {
     suspend fun saveSetting(setting: AppSetting)
 }
 
-@Database(entities = [FoodItemData::class, ShoppingItem::class, PlannerEvent::class, RecentItem::class, AppSetting::class], version = 5, exportSchema = false)
+@Database(entities = [FoodItemData::class, ShoppingItem::class, PlannerEvent::class, RecentItem::class, AppSetting::class], version = 7, exportSchema = false)
 @TypeConverters(Converters::class)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun foodDao(): FoodDao

@@ -1,3 +1,5 @@
 <resources>
     <string name="app_name">A212062_Rimaniza_Project2</string>
+    <!-- Replace with your actual Web Client ID from Firebase Console / google-services.json -->
+    <string name="default_web_client_id">508947899107-85q57hl65n4qr15lc81gpsuv547u9bu0.apps.googleusercontent.com</string>
 </resources>

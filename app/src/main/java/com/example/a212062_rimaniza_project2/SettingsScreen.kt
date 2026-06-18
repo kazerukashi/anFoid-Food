@@ -2,6 +2,7 @@ package com.example.a212062_rimaniza_project2
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.filled.DarkMode
@@ -46,20 +47,6 @@ fun SettingsScreen(
                 modifier = Modifier.align(Alignment.CenterStart)
             ) {
                 Icon(Icons.Filled.Menu, contentDescription = "Menu", tint = AppPink)
-            }
-
-            IconButton(
-                onClick = onBackClick,
-                modifier = Modifier
-                    .align(Alignment.CenterStart)
-                    .padding(start = 48.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.KeyboardArrowLeft,
-                    contentDescription = "Back",
-                    tint = AppPink,
-                    modifier = Modifier.size(32.dp)
-                )
             }
 
             Text(

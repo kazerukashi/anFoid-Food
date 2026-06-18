@@ -13,18 +13,22 @@ import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.material.icons.automirrored.filled.EventNote
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.*
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import coil.compose.AsyncImage
 import com.example.a212062_rimaniza_project2.ui.theme.AppPink
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -34,8 +38,14 @@ fun FoodDetailScreen(
     onBackClick: () -> Unit,
     onFavouriteToggle: () -> Unit,
     onAddToShoppingList: () -> Unit,
-    onAddToPlanner: () -> Unit
+    onAddToPlanner: () -> Unit,
+    isAdmin: Boolean = false,
+    onEditFood: () -> Unit = {},
+    onDeleteFood: () -> Unit = {},
+    viewModel: FoodViewModel? = null
 ) {
+    var showDeleteDialog by remember { mutableStateOf(false) }
+
     Scaffold(
         topBar = {
             CenterAlignedTopAppBar(
@@ -79,14 +89,44 @@ fun FoodDetailScreen(
                     verticalAlignment = Alignment.Top
                 ) {
                     val context = androidx.compose.ui.platform.LocalContext.current
-                    Image(
-                        painter = painterResource(id = getImageResource(context, foodItem.imageResName)),
-                        contentDescription = foodItem.name,
-                        modifier = Modifier
-                            .size(200.dp)
-                            .clip(RoundedCornerShape(16.dp)),
-                        contentScale = ContentScale.Crop
-                    )
+                    
+                    if (!foodItem.imageUrl.isNullOrEmpty()) {
+                        val bitmap = remember(foodItem.imageUrl) {
+                            if (foodItem.imageUrl.startsWith("data:image")) {
+                                viewModel?.decodeImage(foodItem.imageUrl.substringAfter("base64,"))
+                            } else null
+                        }
+                        if (bitmap != null) {
+                            Image(
+                                bitmap = bitmap.asImageBitmap(),
+                                contentDescription = foodItem.name,
+                                modifier = Modifier
+                                    .size(200.dp)
+                                    .clip(RoundedCornerShape(16.dp)),
+                                contentScale = ContentScale.Crop
+                            )
+                        } else {
+                            AsyncImage(
+                                model = foodItem.imageUrl,
+                                contentDescription = foodItem.name,
+                                modifier = Modifier
+                                    .size(200.dp)
+                                    .clip(RoundedCornerShape(16.dp)),
+                                contentScale = ContentScale.Crop,
+                                placeholder = painterResource(id = R.drawable.default_pic),
+                                error = painterResource(id = R.drawable.default_pic)
+                            )
+                        }
+                    } else {
+                        Image(
+                            painter = painterResource(id = getImageResource(context, foodItem.imageResName)),
+                            contentDescription = foodItem.name,
+                            modifier = Modifier
+                                .size(200.dp)
+                                .clip(RoundedCornerShape(16.dp)),
+                            contentScale = ContentScale.Crop
+                        )
+                    }
                     
                     Spacer(modifier = Modifier.width(16.dp))
                     
@@ -114,6 +154,23 @@ fun FoodDetailScreen(
                             iconColor = if (foodItem.isFavourite) Color.Red else AppPink,
                             onClick = onFavouriteToggle
                         )
+
+                        if (isAdmin && !foodItem.isCommunity) {
+                            // Edit Button
+                            ActionButton(
+                                icon = Icons.Default.Edit,
+                                label = "Edit Food",
+                                onClick = onEditFood
+                            )
+
+                            // Delete Button
+                            ActionButton(
+                                icon = Icons.Default.Delete,
+                                label = "Delete Food",
+                                iconColor = MaterialTheme.colorScheme.error,
+                                onClick = { showDeleteDialog = true }
+                            )
+                        }
                     }
                 }
             }
@@ -162,6 +219,30 @@ fun FoodDetailScreen(
                 }
             }
         }
+    }
+
+    if (showDeleteDialog) {
+        AlertDialog(
+            onDismissRequest = { showDeleteDialog = false },
+            title = { Text("Delete Food Item") },
+            text = { Text("Are you sure you want to delete '${foodItem.name}' from the database? This action cannot be undone.") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showDeleteDialog = false
+                        onDeleteFood()
+                    },
+                    colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
+                ) {
+                    Text("Delete")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteDialog = false }) {
+                    Text("Cancel")
+                }
+            }
+        )
     }
 }
 

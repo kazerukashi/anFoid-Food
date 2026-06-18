@@ -16,6 +16,7 @@ import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.material.icons.filled.Flatware
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.snapshots.SnapshotStateList
@@ -35,6 +36,8 @@ fun ShoppingScreen(
     onUpdateItem: (ShoppingItem) -> Unit,
     onDeleteItem: (ShoppingItem) -> Unit,
     onDeleteIngredient: (String) -> Unit,
+    onDeleteFood: (String) -> Unit,
+    onRenameFood: (String, String) -> Unit,
     onCheckedChange: (String, Boolean) -> Unit,
     onItemCheckedChange: (String, Boolean) -> Unit,
     displayMode: String,
@@ -44,6 +47,8 @@ fun ShoppingScreen(
     var itemToEdit by remember { mutableStateOf<ShoppingItem?>(null) }
     var itemToDelete by remember { mutableStateOf<ShoppingItem?>(null) }
     var ingredientToDelete by remember { mutableStateOf<String?>(null) }
+    var foodToDelete by remember { mutableStateOf<String?>(null) }
+    var foodToRename by remember { mutableStateOf<String?>(null) }
 
     var expandedGroups by remember { mutableStateOf(setOf<String>()) }
 
@@ -164,6 +169,37 @@ fun ShoppingScreen(
                                         fontWeight = FontWeight.Bold,
                                         modifier = Modifier.weight(1f)
                                     )
+                                    
+                                    if (foodName != "Ungrouped") {
+                                        var showMenu by remember { mutableStateOf(false) }
+                                        Box {
+                                            IconButton(onClick = { showMenu = true }) {
+                                                Icon(Icons.Default.MoreVert, contentDescription = "Options", tint = AppPink)
+                                            }
+                                            DropdownMenu(
+                                                expanded = showMenu,
+                                                onDismissRequest = { showMenu = false }
+                                            ) {
+                                                DropdownMenuItem(
+                                                    text = { Text("Edit Name") },
+                                                    leadingIcon = { Icon(Icons.Default.Edit, contentDescription = null, modifier = Modifier.size(18.dp)) },
+                                                    onClick = {
+                                                        showMenu = false
+                                                        foodToRename = foodName
+                                                    }
+                                                )
+                                                DropdownMenuItem(
+                                                    text = { Text("Delete All", color = MaterialTheme.colorScheme.error) },
+                                                    leadingIcon = { Icon(Icons.Default.Delete, contentDescription = null, tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(18.dp)) },
+                                                    onClick = {
+                                                        showMenu = false
+                                                        foodToDelete = foodName
+                                                    }
+                                                )
+                                            }
+                                        }
+                                    }
+
                                     Icon(
                                         imageVector = if (isExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
                                         contentDescription = if (isExpanded) "Collapse" else "Expand",
@@ -279,14 +315,20 @@ fun ShoppingScreen(
         )
     }
 
-    if (itemToDelete != null || ingredientToDelete != null) {
+    if (itemToDelete != null || ingredientToDelete != null || foodToDelete != null) {
         AlertDialog(
             onDismissRequest = { 
                 itemToDelete = null
                 ingredientToDelete = null
+                foodToDelete = null
             },
             title = { Text("Confirm Deletion") },
-            text = { Text("Are you sure you want to delete this item?") },
+            text = { 
+                Text(
+                    if (foodToDelete != null) "Are you sure you want to delete all items for \"$foodToDelete\"?"
+                    else "Are you sure you want to delete this item?"
+                ) 
+            },
             confirmButton = {
                 TextButton(
                     onClick = {
@@ -294,9 +336,12 @@ fun ShoppingScreen(
                             onDeleteItem(itemToDelete!!)
                         } else if (ingredientToDelete != null) {
                             onDeleteIngredient(ingredientToDelete!!)
+                        } else if (foodToDelete != null) {
+                            onDeleteFood(foodToDelete!!)
                         }
                         itemToDelete = null
                         ingredientToDelete = null
+                        foodToDelete = null
                     },
                     colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
                 ) {
@@ -307,7 +352,41 @@ fun ShoppingScreen(
                 TextButton(onClick = { 
                     itemToDelete = null
                     ingredientToDelete = null
+                    foodToDelete = null
                 }) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
+
+    if (foodToRename != null) {
+        var newName by remember(foodToRename) { mutableStateOf(foodToRename ?: "") }
+        AlertDialog(
+            onDismissRequest = { foodToRename = null },
+            title = { Text("Rename Food") },
+            text = {
+                OutlinedTextField(
+                    value = newName,
+                    onValueChange = { newName = it },
+                    label = { Text("New Name") },
+                    modifier = Modifier.fillMaxWidth()
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        if (newName.isNotBlank() && foodToRename != null) {
+                            onRenameFood(foodToRename!!, newName)
+                            foodToRename = null
+                        }
+                    }
+                ) {
+                    Text("Save")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { foodToRename = null }) {
                     Text("Cancel")
                 }
             }

@@ -34,6 +34,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -55,6 +56,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 
 import androidx.lifecycle.viewmodel.compose.viewModel
+import coil.compose.AsyncImage
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 
@@ -97,9 +99,12 @@ class MainActivity : ComponentActivity() {
 
                 val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
                 val scope = rememberCoroutineScope()
+                var communityRefreshTrigger by remember { mutableIntStateOf(0) }
 
-                val hideNavBarRoutes = listOf("Profile", "Settings")
-                val isNavBarVisible = currentRoute !in hideNavBarRoutes && currentRoute?.startsWith("Detail") == false
+                val hideNavBarRoutes = listOf("Profile", "Settings", "Auth")
+                val isNavBarVisible = currentRoute !in hideNavBarRoutes && currentRoute?.startsWith("Detail") == false && currentRoute?.startsWith("FoodDetail") == false && currentRoute != "Auth"
+
+                val startDestination = "Home"
 
                 ModalNavigationDrawer(
                     drawerState = drawerState,
@@ -196,12 +201,12 @@ class MainActivity : ComponentActivity() {
                         ) {
                             NavHost(
                                 navController = navController,
-                                startDestination = "Home",
+                                startDestination = startDestination,
                                 modifier = Modifier.weight(1f),
                                 enterTransition = {
                                     val target = targetState.destination.route ?: ""
                                     val initial = initialState.destination.route ?: ""
-                                    val order = listOf("Home", "Shopping", "Planner", "Community", "Profile", "Settings", "Detail", "FoodDetail")
+                                    val order = listOf("Auth", "Home", "Shopping", "Planner", "Community", "Profile", "Settings", "Detail", "FoodDetail", "AddFood")
                                     
                                     val targetIndex = order.indexOfFirst { target.startsWith(it) }
                                     val initialIndex = order.indexOfFirst { initial.startsWith(it) }
@@ -220,7 +225,7 @@ class MainActivity : ComponentActivity() {
                                 exitTransition = {
                                     val target = targetState.destination.route ?: ""
                                     val initial = initialState.destination.route ?: ""
-                                    val order = listOf("Home", "Shopping", "Planner", "Community", "Profile", "Settings", "Detail", "FoodDetail")
+                                    val order = listOf("Auth", "Home", "Shopping", "Planner", "Community", "Profile", "Settings", "Detail", "FoodDetail", "AddFood")
                                     
                                     val targetIndex = order.indexOfFirst { target.startsWith(it) }
                                     val initialIndex = order.indexOfFirst { initial.startsWith(it) }
@@ -239,7 +244,7 @@ class MainActivity : ComponentActivity() {
                                 popEnterTransition = {
                                     val target = targetState.destination.route ?: ""
                                     val initial = initialState.destination.route ?: ""
-                                    val order = listOf("Home", "Shopping", "Planner", "Community", "Profile", "Settings", "Detail", "FoodDetail")
+                                    val order = listOf("Auth", "Home", "Shopping", "Planner", "Community", "Profile", "Settings", "Detail", "FoodDetail", "AddFood")
                                     
                                     val targetIndex = order.indexOfFirst { target.startsWith(it) }
                                     val initialIndex = order.indexOfFirst { initial.startsWith(it) }
@@ -258,7 +263,7 @@ class MainActivity : ComponentActivity() {
                                 popExitTransition = {
                                     val target = targetState.destination.route ?: ""
                                     val initial = initialState.destination.route ?: ""
-                                    val order = listOf("Home", "Shopping", "Planner", "Community", "Profile", "Settings", "Detail", "FoodDetail")
+                                    val order = listOf("Auth", "Home", "Shopping", "Planner", "Community", "Profile", "Settings", "Detail", "FoodDetail", "AddFood")
                                     
                                     val targetIndex = order.indexOfFirst { target.startsWith(it) }
                                     val initialIndex = order.indexOfFirst { initial.startsWith(it) }
@@ -275,6 +280,18 @@ class MainActivity : ComponentActivity() {
                                     ) + fadeOut(animationSpec = tween(400))
                                 }
                             ) {
+                                composable("Auth") {
+                                    AuthScreen(
+                                        onAuthSuccess = {
+                                            viewModel.syncAllUserData()
+                                            navController.popBackStack()
+                                        },
+                                        onBackClick = {
+                                            navController.popBackStack()
+                                        },
+                                        viewModel = viewModel
+                                    )
+                                }
                                 composable("Home") {
                                     HomeScreen(
                                         searchQuery = viewModel.searchQuery,
@@ -299,7 +316,8 @@ class MainActivity : ComponentActivity() {
                                         },
                                         onFavouriteToggle = { toggledItem ->
                                             viewModel.toggleFavourite(toggledItem.id)
-                                        }
+                                        },
+                                        foodViewModel = viewModel
                                     )
                                 }
                                 composable("Shopping") {
@@ -310,6 +328,8 @@ class MainActivity : ComponentActivity() {
                                         onUpdateItem = { viewModel.updateShoppingItem(it) },
                                         onDeleteItem = { viewModel.deleteShoppingItem(it) },
                                         onDeleteIngredient = { viewModel.deleteShoppingItemsByIngredient(it) },
+                                        onDeleteFood = { viewModel.deleteShoppingItemsByFoodName(it) },
+                                        onRenameFood = { old, new -> viewModel.renameShoppingFood(old, new) },
                                         onCheckedChange = { ingredient, checked -> 
                                             viewModel.toggleShoppingItemChecked(ingredient, checked)
                                         },
@@ -345,15 +365,87 @@ class MainActivity : ComponentActivity() {
                                 composable("Community") {
                                     CommunityScreen(
                                         onMenuClick = { scope.launch { drawerState.open() } },
-                                        onGoToProfile = { navController.navigate("Profile") },
-                                        viewModel = viewModel
+                                        onNavigateToAuth = { navController.navigate("Auth") },
+                                        onShareRecipeClick = { postId ->
+                                            if (postId != null) navController.navigate("ShareRecipe?postId=$postId")
+                                            else navController.navigate("ShareRecipe")
+                                        },
+                                        viewModel = viewModel,
+                                        refreshTrigger = communityRefreshTrigger,
+                                        onNavigateToProfile = { userId ->
+                                            navController.navigate("Profile?userId=$userId")
+                                        },
+                                        onNavigateToPostDetail = { post ->
+                                            // Create a temporary FoodItemData to reuse FoodDetailScreen
+                                            val dummy = FoodItemData(
+                                                id = post.id,
+                                                name = post.foodName,
+                                                sections = post.components,
+                                                imageResName = ""
+                                            )
+                                            // We need a way to pass this data. 
+                                            // For now, let's navigate and hope it fetches or use a shared state.
+                                            navController.navigate("FoodDetail/${post.id}")
+                                        }
                                     )
                                 }
-                                composable("Profile") {
+                                composable(
+                                    route = "ShareRecipe?postId={postId}",
+                                    arguments = listOf(
+                                        androidx.navigation.navArgument("postId") {
+                                            nullable = true
+                                            defaultValue = null
+                                        }
+                                    )
+                                ) { backStackEntry ->
+                                    val postId = backStackEntry.arguments?.getString("postId")
+                                    ShareRecipeScreen(
+                                        onBackClick = { navController.popBackStack() },
+                                        onPostSuccess = { navController.popBackStack() },
+                                        viewModel = viewModel,
+                                        editPostId = postId
+                                    )
+                                }
+                                composable(
+                                    route = "Profile?userId={userId}",
+                                    arguments = listOf(
+                                        androidx.navigation.navArgument("userId") {
+                                            nullable = true
+                                            defaultValue = null
+                                        }
+                                    )
+                                ) { backStackEntry ->
+                                    val userId = backStackEntry.arguments?.getString("userId")
                                     ProfileScreen(
                                         onMenuClick = { scope.launch { drawerState.open() } },
                                         onBackClick = { navController.popBackStack() },
-                                        viewModel = viewModel
+                                        onNavigateToAuth = { navController.navigate("Auth") },
+                                        onNavigateToPostDetail = { post ->
+                                            navController.navigate("FoodDetail/${post.id}")
+                                        },
+                                        onNavigateToAddFood = {
+                                            navController.navigate("AddFood")
+                                        },
+                                        viewModel = viewModel,
+                                        targetUserId = userId
+                                    )
+                                }
+                                composable(
+                                    route = "AddFood?foodId={foodId}",
+                                    arguments = listOf(
+                                        androidx.navigation.navArgument("foodId") {
+                                            nullable = true
+                                            defaultValue = null
+                                        }
+                                    )
+                                ) { backStackEntry ->
+                                    val foodId = backStackEntry.arguments?.getString("foodId")
+                                    ShareRecipeScreen(
+                                        onBackClick = { navController.popBackStack() },
+                                        onPostSuccess = { navController.popBackStack() },
+                                        viewModel = viewModel,
+                                        isDatabaseItem = true,
+                                        editFoodId = foodId
                                     )
                                 }
                                 composable("Settings") {
@@ -370,11 +462,11 @@ class MainActivity : ComponentActivity() {
                                     val categoryName = backStackEntry.arguments?.getString("categoryName") ?: ""
                                     
                                     val filteredItems = when (viewModel.selectedCategory) {
-                                        "Origin" -> allFoodItems.filter { it.origin == categoryName }
-                                        "Type" -> allFoodItems.filter { it.tags.contains(categoryName) }
+                                        "Origin" -> allFoodItems.filter { !it.isCommunity && it.origin == categoryName }
+                                        "Type" -> allFoodItems.filter { !it.isCommunity && it.tags.contains(categoryName) }
                                         "Favourite" -> allFoodItems.filter { it.isFavourite }
                                         "Recent" -> recentNames.mapNotNull { name -> allFoodItems.find { it.name == name } }
-                                        else -> allFoodItems
+                                        else -> allFoodItems.filter { !it.isCommunity }
                                     }
 
                                     DetailScreen(
@@ -388,12 +480,24 @@ class MainActivity : ComponentActivity() {
                                         onFavouriteToggle = { toggledItem ->
                                             viewModel.toggleFavourite(toggledItem.id)
                                         },
-                                        maxRecentItems = viewModel.maxRecentItems
+                                        maxRecentItems = viewModel.maxRecentItems,
+                                        foodViewModel = viewModel
                                     )
                                 }
                                 composable("FoodDetail/{foodId}") { backStackEntry ->
                                     val foodId = backStackEntry.arguments?.getString("foodId") ?: ""
-                                    val foodItem = allFoodItems.find { it.id == foodId }
+                                    val posts by viewModel.posts.collectAsState()
+                                    
+                                    val foodItem = allFoodItems.find { it.id == foodId } 
+                                        ?: posts.find { it.id == foodId }?.let { post ->
+                                            FoodItemData(
+                                                id = post.id,
+                                                name = post.foodName,
+                                                sections = post.components,
+                                                imageResName = "",
+                                                imageUrl = post.imageUrl
+                                            )
+                                        }
                                     
                                     if (foodItem != null) {
                                         FoodDetailScreen(
@@ -408,14 +512,30 @@ class MainActivity : ComponentActivity() {
                                             },
                                             onAddToPlanner = {
                                                 navController.navigate("Planner?foodId=${foodItem.id}")
-                                            }
+                                            },
+                                            isAdmin = viewModel.isAdmin,
+                                            onEditFood = {
+                                                navController.navigate("AddFood?foodId=${foodItem.id}")
+                                            },
+                                            onDeleteFood = {
+                                                viewModel.deleteFoodFromDatabase(
+                                                    foodId = foodItem.id,
+                                                    onSuccess = { navController.popBackStack() },
+                                                    onFailure = { /* Handle error */ }
+                                                )
+                                            },
+                                            viewModel = viewModel
                                         )
                                     }
                                 }
                             }
 
                             if (isNavBarVisible) {
-                                NavBar(navController = navController, modifier = Modifier.padding(top = 8.dp))
+                                NavBar(
+                                    navController = navController, 
+                                    modifier = Modifier.padding(top = 8.dp),
+                                    onCommunityRefresh = { communityRefreshTrigger++ }
+                                )
                             }
                         }
                     }
@@ -442,7 +562,8 @@ fun HomeScreen(
     coroutineScope: CoroutineScope,
     onMoreClick: (String) -> Unit,
     onFoodClick: (FoodItemData) -> Unit,
-    onFavouriteToggle: (FoodItemData) -> Unit
+    onFavouriteToggle: (FoodItemData) -> Unit,
+    foodViewModel: FoodViewModel
 ) {
     Column(
         modifier = Modifier
@@ -496,7 +617,8 @@ fun HomeScreen(
                             recentNames = recentNames,
                             onFoodClick = onFoodClick,
                             onFavouriteToggle = onFavouriteToggle,
-                            onMoreClick = onMoreClick
+                            onMoreClick = onMoreClick,
+                            foodViewModel = foodViewModel
                         )
                 }
             }
@@ -689,6 +811,7 @@ fun FoodCategory(
     onFoodClick: (FoodItemData) -> Unit,
     onFavouriteToggle: (FoodItemData) -> Unit,
     onMoreClick: (String) -> Unit,
+    foodViewModel: FoodViewModel,
     modifier: Modifier = Modifier
 ) {
     val filteredCategories by remember(searchQuery, selectedCategory, allFoodItems) {
@@ -696,7 +819,7 @@ fun FoodCategory(
             val baseList = when (selectedCategory) {
                 "Favourite" -> allFoodItems.filter { it.isFavourite }
                 "Recent" -> recentNames.mapNotNull { name -> allFoodItems.find { it.name == name } }
-                else -> allFoodItems
+                else -> allFoodItems.filter { !it.isCommunity }
             }
 
             val itemsWithSearch = if (searchQuery.isBlank()) baseList else {
@@ -807,9 +930,9 @@ fun FoodCategory(
                             }
                             
                             if (selectedCategory == "Favourite" || selectedCategory == "Recent") {
-                                FoodGridRow(items, onFoodClick = onFoodClick, onFavouriteToggle = onFavouriteToggle)
+                                FoodGridRow(items, onFoodClick = onFoodClick, onFavouriteToggle = onFavouriteToggle, foodViewModel = foodViewModel)
                             } else {
-                                FoodRow(items, onFoodClick = onFoodClick, onFavouriteToggle = onFavouriteToggle)
+                                FoodRow(items, onFoodClick = onFoodClick, onFavouriteToggle = onFavouriteToggle, foodViewModel = foodViewModel)
                             }
                         }
                     }
@@ -862,7 +985,8 @@ fun FoodSectionHeader(
 fun FoodRow(
     items: List<FoodItemData>,
     onFoodClick: (FoodItemData) -> Unit,
-    onFavouriteToggle: (FoodItemData) -> Unit
+    onFavouriteToggle: (FoodItemData) -> Unit,
+    foodViewModel: FoodViewModel
 ) {
     LazyRow(
         horizontalArrangement = Arrangement.spacedBy(16.dp),
@@ -872,7 +996,8 @@ fun FoodRow(
             FoodItem(
                 item = item,
                 onClick = { onFoodClick(item) },
-                onFavouriteToggle = { onFavouriteToggle(item) }
+                onFavouriteToggle = { onFavouriteToggle(item) },
+                foodViewModel = foodViewModel
             )
         }
     }
@@ -882,7 +1007,8 @@ fun FoodRow(
 fun FoodGridRow(
     items: List<FoodItemData>,
     onFoodClick: (FoodItemData) -> Unit,
-    onFavouriteToggle: (FoodItemData) -> Unit
+    onFavouriteToggle: (FoodItemData) -> Unit,
+    foodViewModel: FoodViewModel
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
         items.chunked(2).forEach { rowItems ->
@@ -895,7 +1021,8 @@ fun FoodGridRow(
                         item = item,
                         modifier = Modifier.weight(1f),
                         onClick = { onFoodClick(item) },
-                        onFavouriteToggle = { onFavouriteToggle(item) }
+                        onFavouriteToggle = { onFavouriteToggle(item) },
+                        foodViewModel = foodViewModel
                     )
                 }
                 if (rowItems.size == 1) {
@@ -911,7 +1038,8 @@ fun FoodItem(
     item: FoodItemData,
     modifier: Modifier = Modifier,
     onClick: () -> Unit,
-    onFavouriteToggle: () -> Unit
+    onFavouriteToggle: () -> Unit,
+    foodViewModel: FoodViewModel
 ) {
     val context = androidx.compose.ui.platform.LocalContext.current
     Card(
@@ -926,14 +1054,43 @@ fun FoodItem(
     ) {
         Column {
             Box {
-                Image(
-                    painter = painterResource(id = getImageResource(context, item.imageResName)),
-                    contentDescription = item.name,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(120.dp),
-                    contentScale = ContentScale.Crop
-                )
+                if (!item.imageUrl.isNullOrEmpty()) {
+                    val bitmap = remember(item.imageUrl) {
+                        if (item.imageUrl.startsWith("data:image")) {
+                            foodViewModel.decodeImage(item.imageUrl.substringAfter("base64,"))
+                        } else null
+                    }
+                    if (bitmap != null) {
+                        Image(
+                            bitmap = bitmap.asImageBitmap(),
+                            contentDescription = item.name,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(120.dp),
+                            contentScale = ContentScale.Crop
+                        )
+                    } else {
+                        AsyncImage(
+                            model = item.imageUrl,
+                            contentDescription = item.name,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(120.dp),
+                            contentScale = ContentScale.Crop,
+                            placeholder = painterResource(id = R.drawable.default_pic),
+                            error = painterResource(id = R.drawable.default_pic)
+                        )
+                    }
+                } else {
+                    Image(
+                        painter = painterResource(id = getImageResource(context, item.imageResName)),
+                        contentDescription = item.name,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(120.dp),
+                        contentScale = ContentScale.Crop
+                    )
+                }
                 IconButton(
                     onClick = onFavouriteToggle,
                     modifier = Modifier
@@ -967,7 +1124,11 @@ fun FoodItem(
 }
 
 @Composable
-fun NavBar(navController: NavController, modifier: Modifier = Modifier) {
+fun NavBar(
+    navController: NavController, 
+    onCommunityRefresh: () -> Unit,
+    modifier: Modifier = Modifier
+) {
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
 
@@ -1010,7 +1171,10 @@ fun NavBar(navController: NavController, modifier: Modifier = Modifier) {
                 icon = Icons.Filled.Groups, 
                 label = "Community", 
                 selected = currentRoute == "Community",
-                onClick = { navController.navigate("Community") }
+                onClick = { 
+                    if (currentRoute == "Community") onCommunityRefresh()
+                    else navController.navigate("Community") 
+                }
             )
         }
     }
