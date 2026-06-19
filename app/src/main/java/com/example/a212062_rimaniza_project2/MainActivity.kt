@@ -29,6 +29,7 @@ import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material3.*
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -100,8 +101,11 @@ class MainActivity : ComponentActivity() {
                 val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
                 val scope = rememberCoroutineScope()
                 var communityRefreshTrigger by remember { mutableIntStateOf(0) }
+                var homeRefreshTrigger by remember { mutableIntStateOf(0) }
+                var shoppingRefreshTrigger by remember { mutableIntStateOf(0) }
+                var plannerRefreshTrigger by remember { mutableIntStateOf(0) }
 
-                val hideNavBarRoutes = listOf("Profile", "Settings", "Auth")
+                val hideNavBarRoutes = listOf("Profile", "Settings", "Auth", "BarcodeScanner")
                 val isNavBarVisible = currentRoute !in hideNavBarRoutes && currentRoute?.startsWith("Detail") == false && currentRoute?.startsWith("FoodDetail") == false && currentRoute != "Auth"
 
                 val startDestination = "Home"
@@ -171,6 +175,23 @@ class MainActivity : ComponentActivity() {
                                 selected = currentRoute == "Settings",
                                 onClick = {
                                     navController.navigate("Settings")
+                                    scope.launch { drawerState.close() }
+                                },
+                                colors = NavigationDrawerItemDefaults.colors(
+                                    selectedContainerColor = AppPink.copy(alpha = 0.2f),
+                                    selectedIconColor = AppPink,
+                                    selectedTextColor = AppPink,
+                                    unselectedContainerColor = Color.Transparent,
+                                    unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    unselectedTextColor = MaterialTheme.colorScheme.onSurface
+                                )
+                            )
+                            NavigationDrawerItem(
+                                icon = { Icon(Icons.Filled.QrCodeScanner, contentDescription = "Barcode Scanner Screen") },
+                                label = { Text("Barcode Scanner") },
+                                selected = currentRoute == "BarcodeScanner",
+                                onClick = {
+                                    navController.navigate("BarcodeScanner")
                                     scope.launch { drawerState.close() }
                                 },
                                 colors = NavigationDrawerItemDefaults.colors(
@@ -317,7 +338,8 @@ class MainActivity : ComponentActivity() {
                                         onFavouriteToggle = { toggledItem ->
                                             viewModel.toggleFavourite(toggledItem.id)
                                         },
-                                        foodViewModel = viewModel
+                                        foodViewModel = viewModel,
+                                        refreshTrigger = homeRefreshTrigger
                                     )
                                 }
                                 composable("Shopping") {
@@ -329,6 +351,7 @@ class MainActivity : ComponentActivity() {
                                         onDeleteItem = { viewModel.deleteShoppingItem(it) },
                                         onDeleteIngredient = { viewModel.deleteShoppingItemsByIngredient(it) },
                                         onDeleteFood = { viewModel.deleteShoppingItemsByFoodName(it) },
+                                        onDeleteAll = { viewModel.clearShoppingList() },
                                         onRenameFood = { old, new -> viewModel.renameShoppingFood(old, new) },
                                         onCheckedChange = { ingredient, checked -> 
                                             viewModel.toggleShoppingItemChecked(ingredient, checked)
@@ -337,7 +360,9 @@ class MainActivity : ComponentActivity() {
                                             viewModel.toggleShoppingItemCheckedById(id, checked)
                                         },
                                         displayMode = viewModel.shoppingDisplayMode,
-                                        onDisplayModeChange = { viewModel.shoppingDisplayMode = it }
+                                        onDisplayModeChange = { viewModel.shoppingDisplayMode = it },
+                                        refreshTrigger = shoppingRefreshTrigger,
+                                        viewModel = viewModel
                                     )
                                 }
                                 composable(
@@ -359,7 +384,10 @@ class MainActivity : ComponentActivity() {
                                         onAddEvent = { viewModel.addPlannerEvent(context, it) },
                                         onUpdateEvent = { viewModel.updatePlannerEvent(context, it) },
                                         onDeleteEvent = { viewModel.deletePlannerEvent(context, it) },
-                                        preSelectedFoodId = preSelectedFoodId
+                                        onClearAll = { viewModel.clearPlanner(context) },
+                                        preSelectedFoodId = preSelectedFoodId,
+                                        refreshTrigger = plannerRefreshTrigger,
+                                        viewModel = viewModel
                                     )
                                 }
                                 composable("Community") {
@@ -458,6 +486,13 @@ class MainActivity : ComponentActivity() {
                                         onBackClick = { navController.popBackStack() }
                                     )
                                 }
+                                composable("BarcodeScanner") {
+                                    BarcodeScannerScreen(
+                                        onMenuClick = { scope.launch { drawerState.open() } },
+                                        onBackClick = { navController.popBackStack() },
+                                        viewModel = viewModel
+                                    )
+                                }
                                 composable("Detail/{categoryName}") { backStackEntry ->
                                     val categoryName = backStackEntry.arguments?.getString("categoryName") ?: ""
                                     
@@ -534,7 +569,10 @@ class MainActivity : ComponentActivity() {
                                 NavBar(
                                     navController = navController, 
                                     modifier = Modifier.padding(top = 8.dp),
-                                    onCommunityRefresh = { communityRefreshTrigger++ }
+                                    onCommunityRefresh = { communityRefreshTrigger++ },
+                                    onHomeRefresh = { homeRefreshTrigger++ },
+                                    onShoppingRefresh = { shoppingRefreshTrigger++ },
+                                    onPlannerRefresh = { plannerRefreshTrigger++ }
                                 )
                             }
                         }
@@ -545,6 +583,7 @@ class MainActivity : ComponentActivity() {
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
     searchQuery: String,
@@ -563,80 +602,104 @@ fun HomeScreen(
     onMoreClick: (String) -> Unit,
     onFoodClick: (FoodItemData) -> Unit,
     onFavouriteToggle: (FoodItemData) -> Unit,
-    foodViewModel: FoodViewModel
+    foodViewModel: FoodViewModel,
+    refreshTrigger: Int = 0
 ) {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(horizontal = 8.dp)
-    ) {
-        Spacer(modifier = Modifier.size(24.dp))
-        TopBar(
-            query = searchQuery,
-            onQueryChange = onQueryChange,
-            isSearchActive = isSearchActive,
-            onSearchToggle = onSearchToggle,
-            onMenuClick = onMenuClick
-        )
-        
-        if (selectedCategory.equals("Recent", ignoreCase = true) && !isSearchActive) {
-            Text(
-                text = "Number of Recents Saved: $maxRecentItems",
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 8.dp),
-                textAlign = TextAlign.Center,
-                style = MaterialTheme.typography.titleMedium.copy(
-                    fontWeight = FontWeight.Bold
-                ),
-                color = AppPink
-            )
-        } else {
-            Spacer(modifier = Modifier.height(16.dp))
+    var isRefreshing by remember { mutableStateOf(false) }
+    
+    val refreshAction = {
+        isRefreshing = true
+        foodViewModel.syncAllUserData()
+        coroutineScope.launch {
+            kotlinx.coroutines.delay(1000)
+            isRefreshing = false
         }
+    }
 
-        Box(modifier = Modifier.weight(1f)) {
-            LazyColumn(
-                state = lazyListState,
-                modifier = Modifier.fillMaxSize(),
-                verticalArrangement = Arrangement.spacedBy(16.dp),
-                contentPadding = PaddingValues(bottom = 16.dp)
-            ) {
-                item {
-                    Category(
-                        selectedCategory = selectedCategory,
-                        onCategoryClick = onCategoryClick
-                    )
-                }
+    LaunchedEffect(refreshTrigger) {
+        if (refreshTrigger > 0) {
+            refreshAction()
+        }
+    }
 
-                item {
-                        FoodCategory(
-                            searchQuery = searchQuery,
-                            selectedCategory = selectedCategory,
-                            allFoodItems = allFoodItems,
-                            recentNames = recentNames,
-                            onFoodClick = onFoodClick,
-                            onFavouriteToggle = onFavouriteToggle,
-                            onMoreClick = onMoreClick,
-                            foodViewModel = foodViewModel
-                        )
-                }
+    PullToRefreshBox(
+        isRefreshing = isRefreshing,
+        onRefresh = { refreshAction() },
+        modifier = Modifier.fillMaxSize()
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 8.dp)
+        ) {
+            Spacer(modifier = Modifier.size(24.dp))
+            TopBar(
+                query = searchQuery,
+                onQueryChange = onQueryChange,
+                isSearchActive = isSearchActive,
+                onSearchToggle = onSearchToggle,
+                onMenuClick = onMenuClick
+            )
+
+            if (selectedCategory.equals("Recent", ignoreCase = true) && !isSearchActive) {
+                Text(
+                    text = "Number of Recents Saved: $maxRecentItems",
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 8.dp),
+                    textAlign = TextAlign.Center,
+                    style = MaterialTheme.typography.titleMedium.copy(
+                        fontWeight = FontWeight.Bold
+                    ),
+                    color = AppPink
+                )
+            } else {
+                Spacer(modifier = Modifier.height(16.dp))
             }
 
-            // Scroll to Top Button
-            Box(
-                modifier = Modifier
-                    .align(Alignment.BottomEnd)
-                    .padding(16.dp)
-            ) {
-                ScrollToTopButton(
-                    visible = showButton,
-                    onClick = {
-                        coroutineScope.launch {
-                            lazyListState.animateScrollToItem(0)
-                        }
+            Box(modifier = Modifier.weight(1f)) {
+                LazyColumn(
+                    state = lazyListState,
+                    modifier = Modifier.fillMaxSize(),
+                    verticalArrangement = Arrangement.spacedBy(16.dp),
+                    contentPadding = PaddingValues(bottom = 16.dp)
+                ) {
+                    item {
+                        Category(
+                            selectedCategory = selectedCategory,
+                            onCategoryClick = onCategoryClick
+                        )
                     }
-                )
+
+                    item {
+                            FoodCategory(
+                                searchQuery = searchQuery,
+                                selectedCategory = selectedCategory,
+                                allFoodItems = allFoodItems,
+                                recentNames = recentNames,
+                                onFoodClick = onFoodClick,
+                                onFavouriteToggle = onFavouriteToggle,
+                                onMoreClick = onMoreClick,
+                                foodViewModel = foodViewModel
+                            )
+                    }
+                }
+
+                // Scroll to Top Button
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.BottomEnd)
+                        .padding(16.dp)
+                ) {
+                    ScrollToTopButton(
+                        visible = showButton,
+                        onClick = {
+                            coroutineScope.launch {
+                                lazyListState.animateScrollToItem(0)
+                            }
+                        }
+                    )
+                }
             }
         }
     }
@@ -1127,6 +1190,9 @@ fun FoodItem(
 fun NavBar(
     navController: NavController, 
     onCommunityRefresh: () -> Unit,
+    onHomeRefresh: () -> Unit,
+    onShoppingRefresh: () -> Unit,
+    onPlannerRefresh: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val navBackStackEntry by navController.currentBackStackEntryAsState()
@@ -1150,8 +1216,11 @@ fun NavBar(
                 label = "Recipe", 
                 selected = currentRoute == "Home",
                 onClick = {
-                    navController.navigate("Home") {
-                        popUpTo("Home") { inclusive = true }
+                    if (currentRoute == "Home") onHomeRefresh()
+                    else {
+                        navController.navigate("Home") {
+                            popUpTo("Home") { inclusive = true }
+                        }
                     }
                 }
             )
@@ -1159,13 +1228,19 @@ fun NavBar(
                 icon = Icons.Filled.ShoppingCart, 
                 label = "Shopping", 
                 selected = currentRoute == "Shopping",
-                onClick = { navController.navigate("Shopping") }
+                onClick = { 
+                    if (currentRoute == "Shopping") onShoppingRefresh()
+                    else navController.navigate("Shopping") 
+                }
             )
             NavItem(
                 icon = Icons.AutoMirrored.Filled.EventNote,
                 label = "Planner", 
                 selected = currentRoute?.startsWith("Planner") == true,
-                onClick = { navController.navigate("Planner") }
+                onClick = { 
+                    if (currentRoute?.startsWith("Planner") == true) onPlannerRefresh()
+                    else navController.navigate("Planner") 
+                }
             )
             NavItem(
                 icon = Icons.Filled.Groups, 

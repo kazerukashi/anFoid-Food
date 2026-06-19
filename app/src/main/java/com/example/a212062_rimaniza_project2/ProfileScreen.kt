@@ -65,7 +65,6 @@ fun ProfileScreen(
     
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
-    val googleAuthHelper = remember { GoogleAuthHelper(context) }
 
     LaunchedEffect(displayUserId) {
         displayUserId?.let { id ->
@@ -381,8 +380,8 @@ fun ProfileScreen(
                 TextButton(
                     onClick = {
                         showSignOutDialog = false
-                        scope.launch {
-                            googleAuthHelper.signOut()
+                        viewModel.currentUser?.let {
+                            com.google.firebase.auth.FirebaseAuth.getInstance().signOut()
                         }
                     },
                     colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)

@@ -11,8 +11,8 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.*
-import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -20,6 +20,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.a212062_rimaniza_project2.ui.theme.AppPink
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import java.util.*
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -31,84 +33,120 @@ fun PlannerScreen(
     onAddEvent: (PlannerEvent) -> Unit,
     onUpdateEvent: (PlannerEvent) -> Unit,
     onDeleteEvent: (PlannerEvent) -> Unit,
-    preSelectedFoodId: String? = null
+    onClearAll: () -> Unit,
+    preSelectedFoodId: String? = null,
+    refreshTrigger: Int = 0,
+    viewModel: FoodViewModel
 ) {
+    var isRefreshing by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
+
+    val refreshAction = {
+        isRefreshing = true
+        viewModel.syncAllUserData()
+        scope.launch {
+            delay(1000)
+            isRefreshing = false
+        }
+    }
+
+    LaunchedEffect(refreshTrigger) {
+        if (refreshTrigger > 0) {
+            refreshAction()
+        }
+    }
+
     var showAddDialog by remember { mutableStateOf(preSelectedFoodId != null) }
     var eventToEdit by remember { mutableStateOf<PlannerEvent?>(null) }
     var eventToDelete by remember { mutableStateOf<PlannerEvent?>(null) }
+    var showClearAllDialog by remember { mutableStateOf(false) }
     
-    // Initial state for pre-selected food
     val preSelectedFood = remember(preSelectedFoodId) {
         allFoodItems.find { it.id == preSelectedFoodId }
     }
 
-    Column(modifier = Modifier.fillMaxSize()) {
-        Spacer(modifier = Modifier.height(24.dp))
-        
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(56.dp)
-                .padding(horizontal = 8.dp),
-            contentAlignment = Alignment.Center
-        ) {
-            IconButton(
-                onClick = onMenuClick,
-                modifier = Modifier.align(Alignment.CenterStart)
+    PullToRefreshBox(
+        isRefreshing = isRefreshing,
+        onRefresh = { refreshAction() },
+        modifier = Modifier.fillMaxSize()
+    ) {
+        Column(modifier = Modifier.fillMaxSize()) {
+            Spacer(modifier = Modifier.height(24.dp))
+            
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(56.dp)
+                    .padding(horizontal = 8.dp),
+                contentAlignment = Alignment.Center
             ) {
-                Icon(Icons.Default.Menu, contentDescription = "Menu", tint = AppPink)
-            }
-            Text(
-                text = "Planner",
-                style = MaterialTheme.typography.titleLarge.copy(
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 24.sp
-                ),
-                color = AppPink
-            )
-        }
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        Box(modifier = Modifier.weight(1f)) {
-            if (plannerEvents.isEmpty()) {
-                Column(
-                    modifier = Modifier.fillMaxSize(),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center
+                IconButton(
+                    onClick = onMenuClick,
+                    modifier = Modifier.align(Alignment.CenterStart)
                 ) {
-                    Text(
-                        text = "No meals planned yet",
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        style = MaterialTheme.typography.bodyLarge
-                    )
+                    Icon(Icons.Default.Menu, contentDescription = "Menu", tint = AppPink)
                 }
-            } else {
-                LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(16.dp, 16.dp, 16.dp, 80.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    items(plannerEvents) { event ->
-                        PlannerEventItem(
-                            event = event,
-                            onEdit = { eventToEdit = event },
-                            onDelete = { eventToDelete = event }
-                        )
+                Text(
+                    text = "Planner",
+                    style = MaterialTheme.typography.titleLarge.copy(
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 24.sp
+                    ),
+                    color = AppPink
+                )
+                
+                if (plannerEvents.isNotEmpty()) {
+                    IconButton(
+                        onClick = { showClearAllDialog = true },
+                        modifier = Modifier.align(Alignment.CenterEnd)
+                    ) {
+                        Icon(Icons.Default.DeleteForever, contentDescription = "Clear All", tint = Color.Red)
                     }
                 }
             }
 
-            FloatingActionButton(
-                onClick = { showAddDialog = true },
-                containerColor = AppPink,
-                contentColor = Color.White,
-                shape = CircleShape,
-                modifier = Modifier
-                    .align(Alignment.BottomEnd)
-                    .padding(16.dp)
-            ) {
-                Icon(Icons.Default.Add, contentDescription = "Plan Meal")
+            Spacer(modifier = Modifier.height(16.dp))
+
+            Box(modifier = Modifier.weight(1f)) {
+                if (plannerEvents.isEmpty()) {
+                    Column(
+                        modifier = Modifier.fillMaxSize(),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center
+                    ) {
+                        Text(
+                            text = "No meals planned yet",
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            style = MaterialTheme.typography.bodyLarge
+                        )
+                    }
+                } else {
+                    LazyColumn(
+                        modifier = Modifier.fillMaxSize(),
+                        contentPadding = PaddingValues(16.dp, 16.dp, 16.dp, 80.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        items(plannerEvents) { event ->
+                            PlannerEventItem(
+                                event = event,
+                                onEdit = { eventToEdit = event },
+                                onDelete = { eventToDelete = event }
+                            )
+                        }
+                    }
+                }
+
+                FloatingActionButton(
+                    onClick = { showAddDialog = true },
+                    containerColor = AppPink,
+                    contentColor = Color.White,
+                    shape = CircleShape,
+                    modifier = Modifier
+                        .align(Alignment.BottomEnd)
+                        .padding(16.dp)
+                ) {
+                    Icon(Icons.Default.Add, contentDescription = "Plan Meal")
+                }
             }
         }
     }
@@ -130,6 +168,30 @@ fun PlannerScreen(
                 }
                 showAddDialog = false
                 eventToEdit = null
+            }
+        )
+    }
+
+    if (showClearAllDialog) {
+        AlertDialog(
+            onDismissRequest = { showClearAllDialog = false },
+            title = { Text("Clear Planner") },
+            text = { Text("Are you sure you want to clear your entire meal plan?") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        onClearAll()
+                        showClearAllDialog = false
+                    },
+                    colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
+                ) {
+                    Text("Clear All")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showClearAllDialog = false }) {
+                    Text("Cancel")
+                }
             }
         )
     }
@@ -236,7 +298,6 @@ fun PlanMealDialog(
                     modifier = Modifier.fillMaxWidth()
                 )
 
-                // Food Selection
                 ExposedDropdownMenuBox(
                     expanded = foodExpanded,
                     onExpandedChange = { foodExpanded = !foodExpanded }
@@ -300,7 +361,6 @@ fun PlanMealDialog(
                     }
                 }
 
-                // Date Picker
                 OutlinedTextField(
                     value = date,
                     onValueChange = {},
@@ -317,7 +377,6 @@ fun PlanMealDialog(
                     )
                 )
 
-                // Time Picker
                 OutlinedTextField(
                     value = time,
                     onValueChange = {},
@@ -334,7 +393,6 @@ fun PlanMealDialog(
                     )
                 )
 
-                // Repeat Selection
                 ExposedDropdownMenuBox(
                     expanded = repeatExpanded,
                     onExpandedChange = { repeatExpanded = !repeatExpanded }
@@ -363,7 +421,6 @@ fun PlanMealDialog(
                     }
                 }
 
-                // Stop Repeating Date Picker
                 if (repeat != "Never") {
                     OutlinedTextField(
                         value = stopRepeatingDate,
@@ -382,7 +439,6 @@ fun PlanMealDialog(
                     )
                 }
 
-                // Alarm Switch
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)

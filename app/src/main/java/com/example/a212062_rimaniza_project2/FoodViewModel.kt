@@ -28,8 +28,14 @@ import android.util.Base64
 import java.io.ByteArrayOutputStream
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import com.google.gson.Gson
+import java.net.HttpURLConnection
+import java.net.URL
 import java.text.SimpleDateFormat
 import java.util.*
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import android.util.Log
 
 class FoodViewModel(application: Application) : AndroidViewModel(application) {
     private val repository: FoodRepository
@@ -98,6 +104,50 @@ class FoodViewModel(application: Application) : AndroidViewModel(application) {
         private set
     var isDarkTheme by mutableStateOf(true)
         private set
+
+    // --- Barcode Scanner State ---
+    private val _scannedFood = MutableStateFlow<Map<String, Any>?>(null)
+    val scannedFood: StateFlow<Map<String, Any>?> = _scannedFood.asStateFlow()
+
+    private val _isFetchingBarcode = MutableStateFlow(false)
+    val isFetchingBarcode: StateFlow<Boolean> = _isFetchingBarcode.asStateFlow()
+
+    fun resetScannedFood() {
+        _scannedFood.value = null
+    }
+
+    fun fetchFoodByBarcode(barcode: String) {
+        viewModelScope.launch {
+            _isFetchingBarcode.value = true
+            try {
+                val result = withContext(Dispatchers.IO) {
+                    val url = URL("https://world.openfoodfacts.org/api/v2/product/$barcode.json?fields=product_name,brands,quantity,packaging,image_url")
+                    val connection = url.openConnection() as HttpURLConnection
+                    connection.requestMethod = "GET"
+                    connection.setRequestProperty("User-Agent", "anFoidFood - Android - Version 1.0")
+                    
+                    val responseCode = connection.responseCode
+                    if (responseCode == HttpURLConnection.HTTP_OK) {
+                        val responseText = connection.inputStream.bufferedReader().use { it.readText() }
+                        val map = Gson().fromJson(responseText, Map::class.java)
+                        if (map["status"] == 1.0) {
+                            map["product"] as? Map<String, Any>
+                        } else {
+                            null
+                        }
+                    } else {
+                        null
+                    }
+                }
+                _scannedFood.value = result as? Map<String, Any>
+            } catch (e: Exception) {
+                Log.e("FoodViewModel", "Error fetching barcode: ${e.message}")
+                _scannedFood.value = null
+            } finally {
+                _isFetchingBarcode.value = false
+            }
+        }
+    }
 
     // --- Community Posts ---
     private val _posts = MutableStateFlow<List<Post>>(emptyList())
@@ -538,6 +588,16 @@ class FoodViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    fun clearPlanner(context: Context) {
+        val userId = currentUser?.uid ?: return
+        viewModelScope.launch {
+            // Cancel all notifications for the events being deleted
+            plannerEvents.value.forEach { cancelNotification(context, it) }
+            repository.clearPlanner(userId)
+            syncDataToCloud()
+        }
+    }
+
     // Notification helpers
     private fun scheduleNotification(context: Context, event: PlannerEvent) {
         val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
@@ -647,6 +707,14 @@ class FoodViewModel(application: Application) : AndroidViewModel(application) {
         val userId = currentUser?.uid ?: return
         viewModelScope.launch {
             repository.deleteShoppingItemsByFoodName(userId, foodName)
+            syncDataToCloud()
+        }
+    }
+
+    fun clearShoppingList() {
+        val userId = currentUser?.uid ?: return
+        viewModelScope.launch {
+            repository.clearShoppingList(userId)
             syncDataToCloud()
         }
     }

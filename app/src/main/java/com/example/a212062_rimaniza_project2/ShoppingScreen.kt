@@ -8,18 +8,10 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.ExpandLess
-import androidx.compose.material.icons.filled.ExpandMore
-import androidx.compose.material.icons.filled.Menu
-import androidx.compose.material.icons.filled.ShoppingCart
-import androidx.compose.material.icons.filled.Flatware
-import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.*
-import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -27,7 +19,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.a212062_rimaniza_project2.ui.theme.AppPink
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ShoppingScreen(
     onMenuClick: () -> Unit,
@@ -37,213 +32,271 @@ fun ShoppingScreen(
     onDeleteItem: (ShoppingItem) -> Unit,
     onDeleteIngredient: (String) -> Unit,
     onDeleteFood: (String) -> Unit,
+    onDeleteAll: () -> Unit,
     onRenameFood: (String, String) -> Unit,
     onCheckedChange: (String, Boolean) -> Unit,
     onItemCheckedChange: (String, Boolean) -> Unit,
     displayMode: String,
-    onDisplayModeChange: (String) -> Unit
+    onDisplayModeChange: (String) -> Unit,
+    refreshTrigger: Int = 0,
+    viewModel: FoodViewModel
 ) {
+    var isRefreshing by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
+
+    val refreshAction = {
+        isRefreshing = true
+        viewModel.syncAllUserData()
+        scope.launch {
+            delay(1000)
+            isRefreshing = false
+        }
+    }
+
+    LaunchedEffect(refreshTrigger) {
+        if (refreshTrigger > 0) {
+            refreshAction()
+        }
+    }
+
     var showAddDialog by remember { mutableStateOf(false) }
     var itemToEdit by remember { mutableStateOf<ShoppingItem?>(null) }
     var itemToDelete by remember { mutableStateOf<ShoppingItem?>(null) }
     var ingredientToDelete by remember { mutableStateOf<String?>(null) }
     var foodToDelete by remember { mutableStateOf<String?>(null) }
     var foodToRename by remember { mutableStateOf<String?>(null) }
+    var showDeleteAllDialog by remember { mutableStateOf(false) }
 
     var expandedGroups by remember { mutableStateOf(setOf<String>()) }
 
-    Column(modifier = Modifier.fillMaxSize()) {
-        Spacer(modifier = Modifier.height(24.dp))
-        
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(56.dp)
-                .padding(horizontal = 8.dp),
-            contentAlignment = Alignment.Center
-        ) {
-            IconButton(
-                onClick = onMenuClick,
-                modifier = Modifier.align(Alignment.CenterStart)
+    PullToRefreshBox(
+        isRefreshing = isRefreshing,
+        onRefresh = { refreshAction() },
+        modifier = Modifier.fillMaxSize()
+    ) {
+        Column(modifier = Modifier.fillMaxSize()) {
+            Spacer(modifier = Modifier.height(24.dp))
+            
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(56.dp)
+                    .padding(horizontal = 8.dp),
+                contentAlignment = Alignment.Center
             ) {
-                Icon(Icons.Default.Menu, contentDescription = "Menu", tint = AppPink)
-            }
-            Text(
-                text = "Shopping List",
-                style = MaterialTheme.typography.titleLarge.copy(
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 24.sp
-                ),
-                color = AppPink
-            )
-        }
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            CategoryItem(
-                icon = Icons.Default.Flatware,
-                label = "By Food",
-                isSelected = displayMode == "By Food",
-                onClick = { onDisplayModeChange("By Food") }
-            )
-            CategoryItem(
-                icon = Icons.Default.ShoppingCart,
-                label = "All",
-                isSelected = displayMode == "All",
-                onClick = { onDisplayModeChange("All") }
-            )
-        }
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        Box(modifier = Modifier.weight(1f)) {
-            if (shoppingItems.isEmpty()) {
-                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text(
-                        text = "Your shopping list is empty",
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            } else {
-                LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                IconButton(
+                    onClick = onMenuClick,
+                    modifier = Modifier.align(Alignment.CenterStart)
                 ) {
-                    if (displayMode == "All") {
-                        val groupedItems = shoppingItems.groupBy { it.ingredient }
-                        items(groupedItems.toList()) { (ingredient, items) ->
-                            ShoppingListItem(
-                                ingredient = ingredient,
-                                amount = items.joinToString(", ") { it.amount },
-                                foodName = null,
-                                isChecked = items.all { it.isChecked },
-                                onCheckedChange = { checked ->
-                                    onCheckedChange(ingredient, checked)
-                                },
-                                onEdit = {
-                                    itemToEdit = items.first()
-                                },
-                                onDelete = {
-                                    ingredientToDelete = ingredient
-                                }
-                            )
-                        }
-                    } else {
-                        // Group items, treating null/blank foodName as "Ungrouped"
-                        val itemsByFood = shoppingItems.groupBy { it.foodName?.takeIf { name -> name.isNotBlank() } ?: "Ungrouped" }
-                        
-                        // Sort so "Ungrouped" is at the top
-                        val sortedFoodNames = itemsByFood.keys.sortedWith { a, b ->
-                            when {
-                                a == "Ungrouped" -> -1
-                                b == "Ungrouped" -> 1
-                                else -> a.compareTo(b)
-                            }
-                        }
+                    Icon(Icons.Default.Menu, contentDescription = "Menu", tint = AppPink)
+                }
+                Text(
+                    text = "Shopping List",
+                    style = MaterialTheme.typography.titleLarge.copy(
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 24.sp
+                    ),
+                    color = AppPink
+                )
+                
+                if (shoppingItems.isNotEmpty()) {
+                    IconButton(
+                        onClick = { showDeleteAllDialog = true },
+                        modifier = Modifier.align(Alignment.CenterEnd)
+                    ) {
+                        Icon(Icons.Default.DeleteForever, contentDescription = "Clear All", tint = Color.Red)
+                    }
+                }
+            }
 
-                        sortedFoodNames.forEach { foodName ->
-                            val items = itemsByFood[foodName] ?: emptyList()
-                            val isExpanded = expandedGroups.contains(foodName)
-                            
-                            item {
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .clickable { 
-                                            expandedGroups = if (isExpanded) expandedGroups - foodName else expandedGroups + foodName
-                                        }
-                                        .padding(vertical = 8.dp),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Text(
-                                        text = foodName,
-                                        style = MaterialTheme.typography.titleMedium,
-                                        color = AppPink,
-                                        fontWeight = FontWeight.Bold,
-                                        modifier = Modifier.weight(1f)
-                                    )
-                                    
-                                    if (foodName != "Ungrouped") {
-                                        var showMenu by remember { mutableStateOf(false) }
-                                        Box {
-                                            IconButton(onClick = { showMenu = true }) {
-                                                Icon(Icons.Default.MoreVert, contentDescription = "Options", tint = AppPink)
-                                            }
-                                            DropdownMenu(
-                                                expanded = showMenu,
-                                                onDismissRequest = { showMenu = false }
-                                            ) {
-                                                DropdownMenuItem(
-                                                    text = { Text("Edit Name") },
-                                                    leadingIcon = { Icon(Icons.Default.Edit, contentDescription = null, modifier = Modifier.size(18.dp)) },
-                                                    onClick = {
-                                                        showMenu = false
-                                                        foodToRename = foodName
-                                                    }
-                                                )
-                                                DropdownMenuItem(
-                                                    text = { Text("Delete All", color = MaterialTheme.colorScheme.error) },
-                                                    leadingIcon = { Icon(Icons.Default.Delete, contentDescription = null, tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(18.dp)) },
-                                                    onClick = {
-                                                        showMenu = false
-                                                        foodToDelete = foodName
-                                                    }
-                                                )
-                                            }
-                                        }
+            Spacer(modifier = Modifier.height(16.dp))
+
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                CategoryItem(
+                    icon = Icons.Default.Flatware,
+                    label = "By Food",
+                    isSelected = displayMode == "By Food",
+                    onClick = { onDisplayModeChange("By Food") }
+                )
+                CategoryItem(
+                    icon = Icons.Default.ShoppingCart,
+                    label = "All",
+                    isSelected = displayMode == "All",
+                    onClick = { onDisplayModeChange("All") }
+                )
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            Box(modifier = Modifier.weight(1f)) {
+                if (shoppingItems.isEmpty()) {
+                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        Text(
+                            text = "Your shopping list is empty",
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                } else {
+                    LazyColumn(
+                        modifier = Modifier.fillMaxSize(),
+                        contentPadding = PaddingValues(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        if (displayMode == "All") {
+                            val groupedItems = shoppingItems.groupBy { it.ingredient }
+                            items(groupedItems.toList()) { (ingredient, items) ->
+                                ShoppingListItem(
+                                    ingredient = ingredient,
+                                    amount = items.joinToString(", ") { it.amount },
+                                    foodName = null,
+                                    isChecked = items.all { it.isChecked },
+                                    onCheckedChange = { checked ->
+                                        onCheckedChange(ingredient, checked)
+                                    },
+                                    onEdit = {
+                                        itemToEdit = items.first()
+                                    },
+                                    onDelete = {
+                                        ingredientToDelete = ingredient
                                     }
-
-                                    Icon(
-                                        imageVector = if (isExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
-                                        contentDescription = if (isExpanded) "Collapse" else "Expand",
-                                        tint = AppPink
-                                    )
+                                )
+                            }
+                        } else {
+                            val itemsByFood = shoppingItems.groupBy { it.foodName?.takeIf { name -> name.isNotBlank() } ?: "Ungrouped" }
+                            val sortedFoodNames = itemsByFood.keys.sortedWith { a, b ->
+                                when {
+                                    a == "Ungrouped" -> -1
+                                    b == "Ungrouped" -> 1
+                                    else -> a.compareTo(b)
                                 }
                             }
-                            
-                            if (isExpanded) {
-                                items(items) { item ->
-                                    ShoppingListItem(
-                                        ingredient = item.ingredient,
-                                        amount = item.amount,
-                                        foodName = null,
-                                        isChecked = item.isChecked,
-                                        onCheckedChange = { checked ->
-                                            onItemCheckedChange(item.id, checked)
-                                        },
-                                        onEdit = {
-                                            itemToEdit = item
-                                        },
-                                        onDelete = {
-                                            itemToDelete = item
+
+                            sortedFoodNames.forEach { foodName ->
+                                val items = itemsByFood[foodName] ?: emptyList()
+                                val isExpanded = expandedGroups.contains(foodName)
+                                
+                                item {
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .clickable { 
+                                                expandedGroups = if (isExpanded) expandedGroups - foodName else expandedGroups + foodName
+                                            }
+                                            .padding(vertical = 8.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Text(
+                                            text = foodName,
+                                            style = MaterialTheme.typography.titleMedium,
+                                            color = AppPink,
+                                            fontWeight = FontWeight.Bold,
+                                            modifier = Modifier.weight(1f)
+                                        )
+                                        
+                                        if (foodName != "Ungrouped") {
+                                            var showMenu by remember { mutableStateOf(false) }
+                                            Box {
+                                                IconButton(onClick = { showMenu = true }) {
+                                                    Icon(Icons.Default.MoreVert, contentDescription = "Options", tint = AppPink)
+                                                }
+                                                DropdownMenu(
+                                                    expanded = showMenu,
+                                                    onDismissRequest = { showMenu = false }
+                                                ) {
+                                                    DropdownMenuItem(
+                                                        text = { Text("Edit Name") },
+                                                        leadingIcon = { Icon(Icons.Default.Edit, contentDescription = null, modifier = Modifier.size(18.dp)) },
+                                                        onClick = {
+                                                            showMenu = false
+                                                            foodToRename = foodName
+                                                        }
+                                                    )
+                                                    DropdownMenuItem(
+                                                        text = { Text("Delete All", color = MaterialTheme.colorScheme.error) },
+                                                        leadingIcon = { Icon(Icons.Default.Delete, contentDescription = null, tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(18.dp)) },
+                                                        onClick = {
+                                                            showMenu = false
+                                                            foodToDelete = foodName
+                                                        }
+                                                    )
+                                                }
+                                            }
                                         }
-                                    )
+
+                                        Icon(
+                                            imageVector = if (isExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                                            contentDescription = if (isExpanded) "Collapse" else "Expand",
+                                            tint = AppPink
+                                        )
+                                    }
+                                }
+                                
+                                if (isExpanded) {
+                                    items(items) { item ->
+                                        ShoppingListItem(
+                                            ingredient = item.ingredient,
+                                            amount = item.amount,
+                                            foodName = null,
+                                            isChecked = item.isChecked,
+                                            onCheckedChange = { checked ->
+                                                onItemCheckedChange(item.id, checked)
+                                            },
+                                            onEdit = {
+                                                itemToEdit = item
+                                            },
+                                            onDelete = {
+                                                itemToDelete = item
+                                            }
+                                        )
+                                    }
                                 }
                             }
                         }
                     }
                 }
-            }
 
-            FloatingActionButton(
-                onClick = { showAddDialog = true },
-                containerColor = AppPink,
-                contentColor = Color.White,
-                shape = CircleShape,
-                modifier = Modifier
-                    .align(Alignment.BottomEnd)
-                    .padding(16.dp)
-            ) {
-                Icon(Icons.Default.Add, contentDescription = "Add Item")
+                FloatingActionButton(
+                    onClick = { showAddDialog = true },
+                    containerColor = AppPink,
+                    contentColor = Color.White,
+                    shape = CircleShape,
+                    modifier = Modifier
+                        .align(Alignment.BottomEnd)
+                        .padding(16.dp)
+                ) {
+                    Icon(Icons.Default.Add, contentDescription = "Add Item")
+                }
             }
         }
+    }
+
+    if (showDeleteAllDialog) {
+        AlertDialog(
+            onDismissRequest = { showDeleteAllDialog = false },
+            title = { Text("Clear Shopping List") },
+            text = { Text("Are you sure you want to clear your entire shopping list?") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        onDeleteAll()
+                        showDeleteAllDialog = false
+                    },
+                    colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
+                ) {
+                    Text("Clear All")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteAllDialog = false }) {
+                    Text("Cancel")
+                }
+            }
+        )
     }
 
     if (showAddDialog || itemToEdit != null) {

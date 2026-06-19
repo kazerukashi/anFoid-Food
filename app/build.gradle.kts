@@ -68,4 +68,10 @@ dependencies {
     implementation(libs.androidx.room.ktx)
     implementation(libs.google.gson)
     implementation(libs.coil.compose)
+
+    // CameraX and ML Kit
+    implementation("androidx.camera:camera-camera2:1.4.0")
+    implementation("androidx.camera:camera-lifecycle:1.4.0")
+    implementation("androidx.camera:camera-view:1.4.0")
+    implementation("com.google.mlkit:barcode-scanning:17.3.0")
 }

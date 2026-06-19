@@ -114,6 +114,10 @@ class FoodRepository(
         shoppingDao.deleteByFoodName(userId, foodName)
     }
 
+    suspend fun clearShoppingList(userId: String) {
+        shoppingDao.clearAll(userId)
+    }
+
     suspend fun renameShoppingFood(userId: String, oldName: String, newName: String) {
         shoppingDao.updateFoodName(userId, oldName, newName)
     }
@@ -131,6 +135,10 @@ class FoodRepository(
 
     suspend fun deletePlannerEvent(event: PlannerEvent) {
         plannerDao.deleteEvent(event)
+    }
+
+    suspend fun clearPlanner(userId: String) {
+        plannerDao.clearAll(userId)
     }
 
     // --- Recent Items ---

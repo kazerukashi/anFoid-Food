@@ -63,7 +63,6 @@ fun AuthScreen(
     val auth = FirebaseAuth.getInstance()
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    val googleAuthHelper = remember { GoogleAuthHelper(context) }
 
     val galleryLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
@@ -342,41 +341,6 @@ fun AuthScreen(
             ) {
                 if (isLoading) CircularProgressIndicator(color = Color.White)
                 else Text(if (isLogin) "Login" else "Sign Up", fontSize = 18.sp, fontWeight = FontWeight.Bold)
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // Google Sign-In Button
-            OutlinedButton(
-                onClick = {
-                    if (!viewModel.isOnline()) {
-                        errorMessage = "Not Connected to Internet. Please check your connection."
-                        return@OutlinedButton
-                    }
-                    isLoading = true
-                    scope.launch {
-                        val success = googleAuthHelper.signInWithGoogle()
-                        isLoading = false
-                        if (success) onAuthSuccess()
-                        else errorMessage = "Google Sign-In failed"
-                    }
-                },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(56.dp),
-                shape = RoundedCornerShape(12.dp),
-                enabled = !isLoading
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        imageVector = Icons.Default.Stars,
-                        contentDescription = null,
-                        tint = AppPink,
-                        modifier = Modifier.size(24.dp)
-                    )
-                    Spacer(modifier = Modifier.width(12.dp))
-                    Text("Continue with Google", fontSize = 16.sp, color = MaterialTheme.colorScheme.onSurface)
-                }
             }
 
             Spacer(modifier = Modifier.height(24.dp))
