@@ -57,7 +57,7 @@ interface ShoppingDao {
     @Query("UPDATE shopping_items SET foodName = :newName WHERE userId = :userId AND foodName = :oldName")
     suspend fun updateFoodName(userId: String, oldName: String, newName: String)
 
-    @Query("DELETE FROM shopping_items WHERE userId = :userId")
+    @Query("DELETE FROM shopping_items WHERE userId = :userId OR userId = ''")
     suspend fun clearAll(userId: String)
 }
 
@@ -78,7 +78,7 @@ interface PlannerDao {
     @Delete
     suspend fun deleteEvent(event: PlannerEvent)
 
-    @Query("DELETE FROM planner_events WHERE userId = :userId")
+    @Query("DELETE FROM planner_events WHERE userId = :userId OR userId = ''")
     suspend fun clearAll(userId: String)
 }
 
@@ -93,7 +93,7 @@ interface RecentDao {
     @Query("DELETE FROM recent_items WHERE userId = :userId AND foodName NOT IN (SELECT foodName FROM recent_items WHERE userId = :userId ORDER BY timestamp DESC LIMIT :limit)")
     suspend fun trimRecent(userId: String, limit: Int)
 
-    @Query("DELETE FROM recent_items WHERE userId = :userId")
+    @Query("DELETE FROM recent_items WHERE userId = :userId OR userId = ''")
     suspend fun clearAll(userId: String)
 }
 

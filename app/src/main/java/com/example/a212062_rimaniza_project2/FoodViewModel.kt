@@ -571,10 +571,11 @@ class FoodViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun updatePlannerEvent(context: Context, event: PlannerEvent) {
+        val userId = currentUser?.uid ?: return
         val existing = plannerEvents.value.find { it.id == event.id }
         viewModelScope.launch {
             existing?.let { cancelNotification(context, it) }
-            repository.updatePlannerEvent(event)
+            repository.updatePlannerEvent(event.copy(userId = userId))
             scheduleNotification(context, event)
             syncDataToCloud()
         }
@@ -682,8 +683,9 @@ class FoodViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun updateShoppingItem(item: ShoppingItem) {
+        val userId = currentUser?.uid ?: return
         viewModelScope.launch { 
-            repository.updateShoppingItem(item)
+            repository.updateShoppingItem(item.copy(userId = userId))
             syncDataToCloud()
         }
     }

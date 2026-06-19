@@ -151,6 +151,10 @@ fun BarcodeScannerScreen(
                         onScanAgain = {
                             viewModel.resetScannedFood()
                             isScanning = true
+                        },
+                        onPickFromGallery = {
+                            viewModel.resetScannedFood()
+                            galleryLauncher.launch("image/*")
                         }
                     )
                 }
@@ -216,7 +220,11 @@ fun InitialScannerContent(onStartScan: () -> Unit, onPickFromGallery: () -> Unit
 }
 
 @Composable
-fun FoodResultContent(product: Map<String, Any>, onScanAgain: () -> Unit) {
+fun FoodResultContent(
+    product: Map<String, Any>,
+    onScanAgain: () -> Unit,
+    onPickFromGallery: () -> Unit
+) {
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -262,7 +270,23 @@ fun FoodResultContent(product: Map<String, Any>, onScanAgain: () -> Unit) {
             colors = ButtonDefaults.buttonColors(containerColor = AppPink),
             shape = RoundedCornerShape(12.dp)
         ) {
-            Text("Scan Another Food Barcodes", color = Color.White, modifier = Modifier.padding(8.dp))
+            Icon(Icons.Default.CameraAlt, contentDescription = null)
+            Spacer(modifier = Modifier.width(8.dp))
+            Text("Scan Live Again", color = Color.White, modifier = Modifier.padding(8.dp))
+        }
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        OutlinedButton(
+            onClick = onPickFromGallery,
+            modifier = Modifier.fillMaxWidth(),
+            colors = ButtonDefaults.outlinedButtonColors(contentColor = AppPink),
+            shape = RoundedCornerShape(12.dp),
+            border = androidx.compose.foundation.BorderStroke(2.dp, AppPink)
+        ) {
+            Icon(Icons.Default.QrCodeScanner, contentDescription = null)
+            Spacer(modifier = Modifier.width(8.dp))
+            Text("Scan Another from Gallery", modifier = Modifier.padding(8.dp))
         }
     }
 }
